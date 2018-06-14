@@ -224,6 +224,16 @@ class GoogleAnalyticsPlugin(p.SingletonPlugin):
             'activity'
         ]
         register_list_str = '|'.join(register_list)
+        with SubMapper(map, controller='ckanext.googleanalytics.controller:GAOrganizationController') as m:
+            m.connect('/organization/{id}',
+                   action='read')
+
+        with SubMapper(map, controller='ckanext.googleanalytics.controller:GAPackageController') as m:
+            m.connect('dataset_read', '/dataset/{id}', action='read',
+                     ckan_icon='sitemap')
+            m.connect('/dataset/{id}/resource/{resource_id}',
+                     action='resource_read')
+                     
         # /api ver 3 or none
         with SubMapper(map, controller='ckanext.googleanalytics.controller:GAApiController', path_prefix='/api{ver:/3|}',
                     ver='/3') as m:
