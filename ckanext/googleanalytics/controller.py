@@ -159,6 +159,7 @@ class GADatastoreController(DatastoreController):
     def dump(self, resource_id):
         self._post_analytics(c.user, "Resource", "Download", resource_id)
         return DatastoreController.dump(self, resource_id)
+
 class GAOrganizationController(OrganizationController):
     def _post_analytics(self, user, request_obj_type, request_function, request_id):
         if config.get('googleanalytics.id'):
@@ -176,11 +177,12 @@ class GAOrganizationController(OrganizationController):
                 "el": request_id,
             }
             plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
+
     def read(self, id, limit=20):
         package = toolkit.get_action('package_show')({},{'id':id})
         org_title = package.get('organization').get('title')
         self._post_analytics(c.user,"Organization","View",org_title)
-        return OrganizationController.read(self, org_title, limit=20)
+        return OrganizationController.read(self, id, limit=20)
 
 class GAPackageController(PackageController):
     def _post_analytics(self, user, request_obj_type, request_function, request_id):
@@ -199,14 +201,17 @@ class GAPackageController(PackageController):
                 "el": request_id,
             }
             plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
+
     def read(self, id):
         org_id = self.get_package_org_id(id)
         self._post_analytics(c.user,"Organization","View",org_id)
         return PackageController.read(self, id)
+
     def resource_read(self, id, resource_id):
         org_id = self.get_package_org_id(id)
         self._post_analytics(c.user,"Organization","View",org_id)
         return PackageController.resource_read(self, id, resource_id)
+
     def get_package_org_id(self, package_id):
         package = toolkit.get_action('package_show')({},{'id':package_id})
         org_id = package.get('organization').get('title')
