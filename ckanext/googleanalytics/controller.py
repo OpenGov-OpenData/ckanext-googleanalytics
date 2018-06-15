@@ -179,8 +179,8 @@ class GAOrganizationController(OrganizationController):
             plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
 
     def read(self, id, limit=20):
-        package = toolkit.get_action('package_show')({},{'id':id})
-        org_title = package.get('organization').get('title')
+        org = toolkit.get_action('organization_show')({},{'id':id})
+        org_title = org.get('title')
         self._post_analytics(c.user,"Organization","View",org_title)
         return OrganizationController.read(self, id, limit=20)
 
