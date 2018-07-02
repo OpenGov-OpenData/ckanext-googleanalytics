@@ -204,29 +204,19 @@ class GAPackageController(PackageController):
 
     def read(self, id):
         logging.error('read has been called')
-#        return
-        org_id = self.get_package_org_id(id)
-        if org_id != "new":
+        if id!="new":
+            org_id = self.get_package_org_id(id)
             self._post_analytics(c.user,"Organization","View",org_id)
         else:
             return PackageController.new(self)
         return PackageController.read(self, id)
 
     def resource_read(self, id, resource_id):
-        logging.error('resource_read has been called')
         org_id = self.get_package_org_id(id)
         self._post_analytics(c.user,"Organization","View",org_id)
         return PackageController.resource_read(self, id, resource_id)
 
     def get_package_org_id(self, package_id):
-        logging.error('package id: ' + package_id)
-        try:
-            package = toolkit.get_action('package_show')({},{'id':package_id})
-            org_id = package.get('organization').get('title')
-        except:
-            org_id = "new"
+        package = toolkit.get_action('package_show')({},{'id':package_id})
+        org_id = package.get('organization').get('title')
         return org_id
-
-#    def edit(self,id):
-#	logging.error('edit called')
-#	return PackageController.edit(self,id)
