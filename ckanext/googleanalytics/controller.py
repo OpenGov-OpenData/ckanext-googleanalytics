@@ -202,11 +202,13 @@ class GAPackageController(PackageController):
             }
             plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
 
+    # This function is called everytime we access a dataset including the dataset "new" when creating a new datasets
     def read(self, id):
-        logging.error('read has been called')
+        # We do not want to incorrectly perform read operation on package id "new", where it results in the package not being found
         if id!="new":
             org_id = self.get_package_org_id(id)
             self._post_analytics(c.user,"Organization","View",org_id)
+        # If we simply return PackageController.read() or return w/o a PackaageController.new() operation, a blank page or error page will appear
         else:
             return PackageController.new(self)
         return PackageController.read(self, id)
