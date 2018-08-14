@@ -178,12 +178,6 @@ class GAOrganizationController(OrganizationController):
             }
             plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
 
-    # def read(self, id, limit=20):
-    #     org = toolkit.get_action('organization_show')({},{'id':id})
-    #     org_title = org.get('title')
-    #     self._post_analytics(c.user,"Organization","View",org_title)
-    #     return OrganizationController.read(self, id, limit=20)
-
     def read(self, id, limit=20):
         # We do not want to incorrectly perform read operation on organization id "new", where it results in a NotFound error 
         if id!="new":
