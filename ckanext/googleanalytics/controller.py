@@ -182,9 +182,12 @@ class GAOrganizationController(OrganizationController):
         # We do not want to perform read operation on organization id "new",
         # where it results in a NotFound error
         if id!="new":
-            org = toolkit.get_action('organization_show')({},{'id':id})
-            org_title = org.get('title')
-            self._post_analytics(c.user,"Organization", "View", org_title)
+            try:
+                org = toolkit.get_action('organization_show')({},{'id':id})
+                org_title = org.get('title')
+                self._post_analytics(c.user,"Organization", "View", org_title)
+            except:
+                log.debug('Organization not found: ' + id)
         else:
             return OrganizationController.new(self)
         return OrganizationController.read(self, id, limit=20)
