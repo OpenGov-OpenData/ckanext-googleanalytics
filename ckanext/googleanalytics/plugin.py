@@ -63,32 +63,50 @@ def _post_analytics(
 def post_analytics_decorator(func):
     def func_wrapper(cls, id, resource_id, filename):
         resource = toolkit.get_action('resource_show')({},{'id':resource_id})
-        resource_alias = resource.get('name')
+        resource_name = resource.get('name')
         package_id = resource.get('package_id')
         package = toolkit.get_action('package_show')({},{'id':package_id})
-        organization_title = package.get('organization').get('title')
         package_name = package.get('name')
-        _post_analytics(
-            c.user,
-            "CKAN Resource Download Request",
-            "Resource",
-            "Download",
-            resource_id+'('+resource_alias+')',
-        )
-        _post_analytics(
-            c.user,
-            "CKAN Resource Download Request",
-            "Package",
-            "Download",
-            package_name
-        )
-        _post_analytics(
-            c.user,
-            "CKAN Resource Download Request",
-            "Organization",
-            "Download",
-            organization_title
-        )
+        organization_id = package.get('organization').get('id')
+        organization_title = package.get('organization').get('title')
+
+        try:
+            resource_alias = resource_id
+            if resource_name:
+                resource_alias = '{} ({})'.format(resource_id, resource_name)
+            _post_analytics(
+                c.user,
+                "CKAN Resource Download Request",
+                "Resource",
+                "Download",
+                resource_alias,
+            )
+        except:
+            log.error("Error sending resource download request (Res) to Google Analytics: "+resource_id)
+
+        try:
+            package_alias = package_name or package_id
+            _post_analytics(
+                c.user,
+                "CKAN Resource Download Request",
+                "Package",
+                "Download",
+                package_alias
+            )
+        except:
+            log.error("Error sending resource download request (Pkg) to Google Analytics: "+resource_id)
+
+        try:
+            organization_alias = organization_title or organization_id
+            _post_analytics(
+                c.user,
+                "CKAN Resource Download Request",
+                "Organization",
+                "Download",
+                organization_alias
+            )
+        except:
+            log.error("Error sending resource download request (Org) to Google Analytics: "+resource_id)
 
         return func(cls, id, resource_id, filename)
 
