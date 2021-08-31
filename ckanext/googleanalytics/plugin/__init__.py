@@ -70,6 +70,7 @@ class GoogleAnalyticsPlugin(GAMixinPlugin, p.SingletonPlugin):
             msg = "Missing googleanalytics.id in config"
             raise GoogleAnalyticsException(msg)
         self.googleanalytics_id = config["googleanalytics.id"]
+        self.googleanalytics_id2 = config["googleanalytics.id2"] if "googleanalytics.id2" in config else None
         self.googleanalytics_domain = config.get(
             "googleanalytics.domain", "auto"
         )
@@ -150,6 +151,8 @@ class GoogleAnalyticsPlugin(GAMixinPlugin, p.SingletonPlugin):
             "googleanalytics_fields": str(self.googleanalytics_fields),
             "googleanalytics_linked_domains": self.googleanalytics_linked_domains,
         }
+        if self.googleanalytics_id2 is not None:
+            data["googleanalytics_id2"] = self.googleanalytics_id2
         return p.toolkit.render_snippet(
             "googleanalytics/snippets/googleanalytics_header.html", data
         )

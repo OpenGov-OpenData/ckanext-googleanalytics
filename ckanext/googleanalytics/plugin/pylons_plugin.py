@@ -163,3 +163,19 @@ def _post_analytics(
             "el": request_id,
         }
         GAMixinPlugin.analytics_queue.put(data_dict)
+
+    if config.get('googleanalytics.id2'):
+        data_dict_2 = {
+            "v": 1,
+            "tid": config.get('googleanalytics.id2'),
+            "cid": hashlib.md5(tk.c.user).hexdigest(),
+            # customer id should be obfuscated
+            "t": "event",
+            "dh": tk.c.environ['HTTP_HOST'],
+            "dp": tk.c.environ['PATH_INFO'],
+            "dr": tk.c.environ.get('HTTP_REFERER', ''),
+            "ec": event_type,
+            "ea": request_obj_type + request_function,
+            "el": request_id,
+        }
+        GAMixinPlugin.analytics_queue.put(data_dict_2)

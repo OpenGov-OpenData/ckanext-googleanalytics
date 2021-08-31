@@ -70,7 +70,7 @@ class GAApiController(ApiController):
                 "dp": c.environ['PATH_INFO'],
                 "dr": c.environ.get('HTTP_REFERER', ''),
                 "ec": "CKAN API Request",
-                "ea": request_obj_type+request_function,
+                "ea": request_obj_type + request_function,
                 "el": request_id,
             }
             plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict_2)
@@ -171,6 +171,22 @@ class GADatastoreController(DatastoreController):
             }
             plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
 
+        if config.get('googleanalytics.id2'):
+            data_dict_2 = {
+                "v": 1,
+                "tid": config.get('googleanalytics.id2'),
+                "cid": hashlib.md5(user).hexdigest(),
+                # customer id should be obfuscated
+                "t": "event",
+                "dh": c.environ['HTTP_HOST'],
+                "dp": c.environ['PATH_INFO'],
+                "dr": c.environ.get('HTTP_REFERER', ''),
+                "ec": "CKAN API Request",
+                "ea": request_obj_type+request_function,
+                "el": request_id,
+            }
+            plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict_2)
+
     def dump(self, resource_id):
         self._post_analytics(c.user, "Resource", "Download", resource_id)
         return DatastoreController.dump(self, resource_id)
@@ -192,6 +208,22 @@ class GAOrganizationController(OrganizationController):
                 "el": request_id,
             }
             plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
+
+        if config.get('googleanalytics.id2'):
+            data_dict_2 = {
+                "v": 1,
+                "tid": config.get('googleanalytics.id2'),
+                "cid": hashlib.md5(user).hexdigest(),
+                # customer id should be obfuscated
+                "t": "event",
+                "dh": c.environ['HTTP_HOST'],
+                "dp": c.environ['PATH_INFO'],
+                "dr": c.environ.get('HTTP_REFERER', ''),
+                "ec": "CKAN API Request",
+                "ea": request_obj_type+request_function,
+                "el": request_id,
+            }
+            plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict_2)
 
     def read(self, id, limit=20):
         # We do not want to perform read operation on organization id "new",
@@ -224,6 +256,21 @@ class GAPackageController(PackageController):
                 "el": request_id,
             }
             plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
+        if config.get('googleanalytics.id2'):
+            data_dict_2 = {
+                "v": 1,
+                "tid": config.get('googleanalytics.id2'),
+                "cid": hashlib.md5(user).hexdigest(),
+                # customer id should be obfuscated
+                "t": "event",
+                "dh": c.environ['HTTP_HOST'],
+                "dp": c.environ['PATH_INFO'],
+                "dr": c.environ.get('HTTP_REFERER', ''),
+                "ec": "CKAN API Request",
+                "ea": request_obj_type+request_function,
+                "el": request_id,
+            }
+            plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict_2)
 
     # This function is called everytime we access a dataset including
     # the dataset "new" when creating a new datasets
