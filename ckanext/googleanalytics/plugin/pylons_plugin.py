@@ -6,10 +6,13 @@ import importlib
 
 import ckan.plugins as plugins
 import ckan.plugins.toolkit as tk
+import logging
 
 from ckan.controllers.package import PackageController
 from pylons import config
 from routes.mapper import SubMapper
+
+log = logging.getLogger(__name__)
 
 
 class GAMixinPlugin(plugins.SingletonPlugin):
@@ -44,6 +47,13 @@ class GAMixinPlugin(plugins.SingletonPlugin):
             "activity",
         ]
         register_list_str = "|".join(register_list)
+        with SubMapper(map, controller='ckanext.googleanalytics.controller:GAOrganizationController') as m:
+            m.connect('/organization/{id}', action='read')
+
+        with SubMapper(map, controller='ckanext.googleanalytics.controller:GAPackageController') as m:
+            m.connect('dataset_read', '/dataset/{id}', action='read', ckan_icon='sitemap')
+            m.connect('/dataset/{id}/resource/{resource_id}', action='resource_read')
+
         # /api ver 3 or none
         with SubMapper(
             map,
@@ -85,6 +95,9 @@ class GAMixinPlugin(plugins.SingletonPlugin):
             m.connect(
                 "/rest/{register}/{id}", action="delete", conditions=DELETE
             )
+        with SubMapper(map, controller='ckanext.googleanalytics.controller:GADatastoreController') as m:
+            m.connect('/datastore/dump/{resource_id}', action='dump')
+            m.connect('/datastore/download/{resource_id}', action='dump')
 
         return map
 
@@ -131,13 +144,51 @@ class GAMixinPlugin(plugins.SingletonPlugin):
 
 def wrap_resource_download(func):
     def func_wrapper(cls, id, resource_id, filename=None):
-        _post_analytics(
-            tk.c.user,
-            "CKAN Resource Download Request",
-            "Resource",
-            "Download",
-            resource_id,
-        )
+        resource = tk.get_action('resource_show')({}, {'id': resource_id})
+        resource_name = resource.get('name')
+        package_id = resource.get('package_id')
+        package = tk.get_action('package_show')({}, {'id': package_id})
+        package_name = package.get('name')
+        organization_id = package.get('organization').get('id')
+        organization_title = package.get('organization').get('title')
+
+        try:
+            resource_alias = resource_id
+            if resource_name:
+                resource_alias = '{} ({})'.format(resource_id, resource_name)
+            _post_analytics(
+                tk.c.user,
+                "CKAN Resource Download Request",
+                "Resource",
+                "Download",
+                resource_alias,
+            )
+        except Exception:
+            log.exception("Error sending resource download request (Res) to Google Analytics: "+resource_id)
+
+        try:
+            package_alias = package_name or package_id
+            _post_analytics(
+                tk.c.user,
+                "CKAN Resource Download Request",
+                "Package",
+                "Download",
+                package_alias
+            )
+        except Exception:
+            log.exception("Error sending resource download request (Pkg) to Google Analytics: "+resource_id)
+
+        try:
+            organization_alias = organization_title or organization_id
+            _post_analytics(
+                tk.c.user,
+                "CKAN Resource Download Request",
+                "Organization",
+                "Download",
+                organization_alias
+            )
+        except Exception:
+            log.exception("Error sending resource download request (Org) to Google Analytics: "+resource_id)
 
         return func(cls, id, resource_id, filename=None)
 

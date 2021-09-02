@@ -13,7 +13,7 @@ for group, filepath in _extras_groups:
         extras_require[group] = f.readlines()
 
 # Get the long description from the relevant file
-with open(os.path.join(HERE, 'README.md'), encoding='utf-8') as f:
+with open(os.path.join(HERE, 'README.md')) as f:
     long_description = f.read()
 
 setup(

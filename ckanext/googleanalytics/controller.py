@@ -181,7 +181,7 @@ class GADatastoreController(DatastoreController):
                 "dh": c.environ['HTTP_HOST'],
                 "dp": c.environ['PATH_INFO'],
                 "dr": c.environ.get('HTTP_REFERER', ''),
-                "ec": "CKAN API Request",
+                "ec": "CKAN Resource Download Request",
                 "ea": request_obj_type+request_function,
                 "el": request_id,
             }
@@ -219,7 +219,7 @@ class GAOrganizationController(OrganizationController):
                 "dh": c.environ['HTTP_HOST'],
                 "dp": c.environ['PATH_INFO'],
                 "dr": c.environ.get('HTTP_REFERER', ''),
-                "ec": "CKAN API Request",
+                "ec": "CKAN Organization Page View",
                 "ea": request_obj_type+request_function,
                 "el": request_id,
             }
@@ -266,7 +266,7 @@ class GAPackageController(PackageController):
                 "dh": c.environ['HTTP_HOST'],
                 "dp": c.environ['PATH_INFO'],
                 "dr": c.environ.get('HTTP_REFERER', ''),
-                "ec": "CKAN API Request",
+                "ec": "CKAN Organization Page View",
                 "ea": request_obj_type+request_function,
                 "el": request_id,
             }

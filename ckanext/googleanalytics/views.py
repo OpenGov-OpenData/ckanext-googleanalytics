@@ -3,6 +3,7 @@
 import hashlib
 import logging
 import six
+from ckanext.googleanalytics.controller import GAOrganizationController, GAPackageController, GADatastoreController
 
 from flask import Blueprint
 from werkzeug.utils import import_string
@@ -10,7 +11,7 @@ from werkzeug.utils import import_string
 import ckan.logic as logic
 import ckan.plugins.toolkit as tk
 import ckan.views.api as api
-import ckan.views.resource as resource
+from ckan.views import resource
 
 from ckan.common import g
 
@@ -63,13 +64,53 @@ def download(id, resource_id, filename=None, package_type="dataset"):
     if not handler:
         log.debug("Use default CKAN callback for resource.download")
         handler = resource.download
-    _post_analytics(
-        g.user,
-        "CKAN Resource Download Request",
-        "Resource",
-        "Download",
-        resource_id,
-    )
+
+    resource = tk.get_action('resource_show')({}, {'id': resource_id})
+    resource_name = resource.get('name')
+    package_id = resource.get('package_id')
+    package = tk.get_action('package_show')({}, {'id': package_id})
+    package_name = package.get('name')
+    organization_id = package.get('organization').get('id')
+    organization_title = package.get('organization').get('title')
+
+    try:
+        resource_alias = resource_id
+        if resource_name:
+            resource_alias = '{} ({})'.format(resource_id, resource_name)
+        _post_analytics(
+            tk.c.user,
+            "CKAN Resource Download Request",
+            "Resource",
+            "Download",
+            resource_alias,
+        )
+    except Exception:
+        log.exception("Error sending resource download request (Res) to Google Analytics: "+resource_id)
+
+    try:
+        package_alias = package_name or package_id
+        _post_analytics(
+            tk.c.user,
+            "CKAN Resource Download Request",
+            "Package",
+            "Download",
+            package_alias
+        )
+    except Exception:
+        log.exception("Error sending resource download request (Pkg) to Google Analytics: "+resource_id)
+
+    try:
+        organization_alias = organization_title or organization_id
+        _post_analytics(
+            tk.c.user,
+            "CKAN Resource Download Request",
+            "Organization",
+            "Download",
+            organization_alias
+        )
+    except Exception:
+        log.exception("Error sending resource download request (Org) to Google Analytics: "+resource_id)
+
     return handler(
         package_type=package_type,
         id=id,
@@ -85,6 +126,14 @@ ga.add_url_rule(
     "/dataset/<id>/resource/<resource_id>/download/<filename>",
     view_func=download,
 )
+
+ga.add_url_rule("/organization/<id>", view_func=GAOrganizationController.read)
+
+ga.add_url_rule("/dataset/<id>", view_func=GAPackageController.read)
+ga.add_url_rule("/dataset/<id>/resource/<resource_id>", view_func=GAPackageController.resource_read)
+
+ga.add_url_rule("/datastore/dump/<resource_id>'", view_func=GADatastoreController.dump)
+ga.add_url_rule("/datastore/download/<resource_id>", view_func=GADatastoreController.dump)
 
 
 def _post_analytics(
