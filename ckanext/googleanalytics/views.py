@@ -3,17 +3,17 @@
 import hashlib
 import logging
 import six
-from ckanext.googleanalytics.controller import GAOrganizationController, GAPackageController, GADatastoreController
+from ckan.views import dataset
+from ckan.views.group import read
+from ckanext.datastore.blueprint import dump
 
 from flask import Blueprint
 from werkzeug.utils import import_string
-
+from . import plugin
 import ckan.logic as logic
 import ckan.plugins.toolkit as tk
 import ckan.views.api as api
-from ckan.views import resource
 
-from ckan.common import g
 
 CONFIG_HANDLER_PATH = "googleanalytics.download_handler"
 
@@ -32,7 +32,7 @@ def action(logic_function, ver=api.API_MAX_VERSION):
                 id = request_data["q"]
             if "query" in request_data:
                 id = request_data[u"query"]
-            _post_analytics(g.user, "CKAN API Request", logic_function, "", id)
+            post_analytics("CKAN API Request", logic_function, "", id)
     except Exception as e:
         log.debug(e)
         pass
@@ -77,37 +77,19 @@ def download(id, resource_id, filename=None, package_type="dataset"):
         resource_alias = resource_id
         if resource_name:
             resource_alias = '{} ({})'.format(resource_id, resource_name)
-        _post_analytics(
-            tk.c.user,
-            "CKAN Resource Download Request",
-            "Resource",
-            "Download",
-            resource_alias,
-        )
+        post_analytics("Resource", "Download", "CKAN Resource Download Request", resource_alias)
     except Exception:
         log.exception("Error sending resource download request (Res) to Google Analytics: "+resource_id)
 
     try:
         package_alias = package_name or package_id
-        _post_analytics(
-            tk.c.user,
-            "CKAN Resource Download Request",
-            "Package",
-            "Download",
-            package_alias
-        )
+        post_analytics("Package", "Download", "CKAN Resource Download Request", package_alias)
     except Exception:
         log.exception("Error sending resource download request (Pkg) to Google Analytics: "+resource_id)
 
     try:
         organization_alias = organization_title or organization_id
-        _post_analytics(
-            tk.c.user,
-            "CKAN Resource Download Request",
-            "Organization",
-            "Download",
-            organization_alias
-        )
+        post_analytics("Organization", "Download", "CKAN Resource Download Request", organization_alias)
     except Exception:
         log.exception("Error sending resource download request (Org) to Google Analytics: "+resource_id)
 
@@ -127,25 +109,26 @@ ga.add_url_rule(
     view_func=download,
 )
 
-ga.add_url_rule("/organization/<id>", view_func=GAOrganizationController.read)
 
-ga.add_url_rule("/dataset/<id>", view_func=GAPackageController.read)
-ga.add_url_rule("/dataset/<id>/resource/<resource_id>", view_func=GAPackageController.resource_read)
-
-ga.add_url_rule("/datastore/dump/<resource_id>'", view_func=GADatastoreController.dump)
-ga.add_url_rule("/datastore/download/<resource_id>", view_func=GADatastoreController.dump)
-
-
-def _post_analytics(
-    user, event_type, request_obj_type, request_function, request_id
-):
-
-    from ckanext.googleanalytics.plugin import GoogleAnalyticsPlugin
-
-    if tk.config.get("googleanalytics.id"):
+def post_analytics(request_obj_type, request_function, event_type, request_id=''):
+    args = tk.request.view_args
+    r_id = args.get('id')
+    try:
+        package = tk.get_action('package_show')({}, {'id': r_id})
+        org_id = package.get('organization').get('title')
+    except Exception:
+        log.debug('Dataset not found: ' + r_id)
+        org_id = ''
+    g_ids = {
+        tk.config.get('googleanalytics.id', None),
+        tk.config.get('googleanalytics.id2', None),
+    }
+    for g_id in g_ids:
+        if not g_id:
+            continue
         data_dict = {
             "v": 1,
-            "tid": tk.config.get("googleanalytics.id"),
+            "tid": g_id,
             "cid": hashlib.md5(six.ensure_binary(tk.c.user)).hexdigest(),
             # customer id should be obfuscated
             "t": "event",
@@ -153,24 +136,53 @@ def _post_analytics(
             "dp": tk.request.environ["PATH_INFO"],
             "dr": tk.request.environ.get("HTTP_REFERER", ""),
             "ec": event_type,
-            "ea": request_obj_type + request_function,
-            "el": request_id,
+            "ea": request_obj_type+request_function,
+            "el": org_id or request_id,
         }
-        GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
+        plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
 
 
-    if tk.config.get('googleanalytics.id2'):
-        data_dict_2 = {
-            "v": 1,
-            "tid": tk.config.get('googleanalytics.id2'),
-            "cid": hashlib.md5(six.ensure_binary(tk.c.user)).hexdigest(),
-            # customer id should be obfuscated
-            "t": "event",
-            "dh": tk.c.environ['HTTP_HOST'],
-            "dp": tk.c.environ['PATH_INFO'],
-            "dr": tk.c.environ.get('HTTP_REFERER', ''),
-            "ec": event_type,
-            "ea": request_obj_type + request_function,
-            "el": request_id,
-        }
-        GoogleAnalyticsPlugin.analytics_queue.put(data_dict_2)
+def before_dataset_request():
+    if tk.request.method == 'GET':
+        post_analytics("Organization", "View", "CKAN Organization Page View")
+
+
+def before_datastore_request():
+    if tk.request.method == 'GET':
+        post_analytics("Resource", "Download", "CKAN Resource Download Request")
+
+
+def before_organization_request():
+    if tk.request.method == 'GET':
+        post_analytics("Organization", "View", "CKAN Organization Page View")
+
+
+dataset_b = Blueprint(
+    u'dataset_googleanalytics',
+    __name__,
+    url_prefix=u'/dataset',
+    url_defaults={u'package_type': u'dataset'}
+)
+dataset_b.before_request(before_dataset_request)
+dataset_b.add_url_rule(u'/<id>', view_func=dataset.read)
+dataset_b.add_url_rule(u'/resources/<id>', view_func=dataset.resources)
+
+
+datastore_b = Blueprint(
+    u'datastore_googleanalytics',
+    __name__,
+    url_prefix=u'/datastore',
+)
+datastore_b.before_request(before_datastore_request)
+datastore_b.add_url_rule("/dump/<resource_id>'", view_func=dump)
+
+
+organization_b = Blueprint(
+    u'organization_googleanalytics',
+    __name__,
+    url_prefix=u'/organization',
+    url_defaults={u'group_type': u'organization',
+                  u'is_organization': True}
+)
+organization_b.before_request(before_organization_request)
+organization_b.add_url_rule(u'/<id>', methods=[u'GET'], view_func=read)

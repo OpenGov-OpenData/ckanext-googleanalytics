@@ -1,34 +1,67 @@
 from __future__ import absolute_import
 
+import six
+if not six.PY2:
+    raise ImportError("This controller has only ckan2.7 and python2.7 compatibility!!!")
+
 import logging
-from ckan.lib.base import BaseController, c, render, request
+from ckan.lib.base import c, render, request
 from . import dbutil
 
 import ckan.logic as logic
 import hashlib
 from . import plugin
-import ckan.plugins.toolkit as toolkit
-from pylons import config
-
 from paste.util.multidict import MultiDict
 
+import ckan.plugins.toolkit as toolkit
+from ckan.lib.base import c, render, request, BaseController
 from ckan.controllers.api import ApiController
-from ckanext.datastore.controller import DatastoreController
 from ckan.controllers.organization import OrganizationController
 from ckan.controllers.package import PackageController
-
-from ckan.exceptions import CkanVersionException
-import ckan.plugins.toolkit as tk
-
-try:
-    tk.requires_ckan_version("2.9")
-except CkanVersionException:
-    pass
-else:
-    from builtins import str
+from ckanext.datastore.controller import DatastoreController
 
 
 log = logging.getLogger("ckanext.googleanalytics")
+
+
+class GADatastoreController(DatastoreController):
+    def _post_analytics(
+            self, user, request_obj_type, request_function, request_id):
+        if toolkit.config.get('googleanalytics.id'):
+            data_dict = {
+                "v": 1,
+                "tid": toolkit.config.get('googleanalytics.id'),
+                "cid": hashlib.md5(user).hexdigest(),
+                # customer id should be obfuscated
+                "t": "event",
+                "dh": c.environ['HTTP_HOST'],
+                "dp": c.environ['PATH_INFO'],
+                "dr": c.environ.get('HTTP_REFERER', ''),
+                "ec": "CKAN Resource Download Request",
+                "ea": request_obj_type+request_function,
+                "el": request_id,
+            }
+            plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
+
+        if toolkit.config.get('googleanalytics.id2'):
+            data_dict_2 = {
+                "v": 1,
+                "tid": toolkit.config.get('googleanalytics.id2'),
+                "cid": hashlib.md5(user).hexdigest(),
+                # customer id should be obfuscated
+                "t": "event",
+                "dh": c.environ['HTTP_HOST'],
+                "dp": c.environ['PATH_INFO'],
+                "dr": c.environ.get('HTTP_REFERER', ''),
+                "ec": "CKAN Resource Download Request",
+                "ea": request_obj_type+request_function,
+                "el": request_id,
+            }
+            plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict_2)
+
+    def dump(self, resource_id):
+        self._post_analytics(c.user, "Resource", "Download", resource_id)
+        return DatastoreController.dump(self, resource_id)
 
 
 class GAController(BaseController):
@@ -41,12 +74,12 @@ class GAController(BaseController):
 class GAApiController(ApiController):
     # intercept API calls to record via google analytics
     def _post_analytics(
-        self, user, request_obj_type, request_function, request_id
+            self, user, request_obj_type, request_function, request_id
     ):
-        if config.get("googleanalytics.id"):
+        if toolkit.config.get("googleanalytics.id"):
             data_dict = {
                 "v": 1,
-                "tid": config.get("googleanalytics.id"),
+                "tid": toolkit.config.get("googleanalytics.id"),
                 "cid": hashlib.md5(user).hexdigest(),
                 # customer id should be obfuscated
                 "t": "event",
@@ -59,10 +92,10 @@ class GAApiController(ApiController):
             }
             plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
 
-        if config.get('googleanalytics.id2'):
+        if toolkit.config.get('googleanalytics.id2'):
             data_dict_2 = {
                 "v": 1,
-                "tid": config.get('googleanalytics.id2'),
+                "tid": toolkit.config.get('googleanalytics.id2'),
                 "cid": hashlib.md5(user).hexdigest(),
                 # customer id should be obfuscated
                 "t": "event",
@@ -74,7 +107,6 @@ class GAApiController(ApiController):
                 "el": request_id,
             }
             plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict_2)
-
 
     def action(self, logic_function, ver=None):
         try:
@@ -101,40 +133,40 @@ class GAApiController(ApiController):
             register + ("_" + str(subregister) if subregister else ""),
             "list",
             id,
-        )
+            )
         return ApiController.list(self, ver, register, subregister, id)
 
     def show(
-        self, ver=None, register=None, subregister=None, id=None, id2=None
+            self, ver=None, register=None, subregister=None, id=None, id2=None
     ):
         self._post_analytics(
             c.user,
             register + ("_" + str(subregister) if subregister else ""),
             "show",
             id,
-        )
+            )
         return ApiController.show(self, ver, register, subregister, id, id2)
 
     def update(
-        self, ver=None, register=None, subregister=None, id=None, id2=None
+            self, ver=None, register=None, subregister=None, id=None, id2=None
     ):
         self._post_analytics(
             c.user,
             register + ("_" + str(subregister) if subregister else ""),
             "update",
             id,
-        )
+            )
         return ApiController.update(self, ver, register, subregister, id, id2)
 
     def delete(
-        self, ver=None, register=None, subregister=None, id=None, id2=None
+            self, ver=None, register=None, subregister=None, id=None, id2=None
     ):
         self._post_analytics(
             c.user,
             register + ("_" + str(subregister) if subregister else ""),
             "delete",
             id,
-        )
+            )
         return ApiController.delete(self, ver, register, subregister, id, id2)
 
     def search(self, ver=None, register=None):
@@ -147,56 +179,17 @@ class GAApiController(ApiController):
                 id = params["query"]
         except ValueError as e:
             log.debug(str(e))
-            pass
         self._post_analytics(c.user, register, "search", id)
 
         return ApiController.search(self, ver, register)
 
-class GADatastoreController(DatastoreController):
-    def _post_analytics(
-            self, user, request_obj_type, request_function, request_id):
-        if config.get('googleanalytics.id'):
-            data_dict = {
-                "v": 1,
-                "tid": config.get('googleanalytics.id'),
-                "cid": hashlib.md5(user).hexdigest(),
-                # customer id should be obfuscated
-                "t": "event",
-                "dh": c.environ['HTTP_HOST'],
-                "dp": c.environ['PATH_INFO'],
-                "dr": c.environ.get('HTTP_REFERER', ''),
-                "ec": "CKAN Resource Download Request",
-                "ea": request_obj_type+request_function,
-                "el": request_id,
-            }
-            plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
-
-        if config.get('googleanalytics.id2'):
-            data_dict_2 = {
-                "v": 1,
-                "tid": config.get('googleanalytics.id2'),
-                "cid": hashlib.md5(user).hexdigest(),
-                # customer id should be obfuscated
-                "t": "event",
-                "dh": c.environ['HTTP_HOST'],
-                "dp": c.environ['PATH_INFO'],
-                "dr": c.environ.get('HTTP_REFERER', ''),
-                "ec": "CKAN Resource Download Request",
-                "ea": request_obj_type+request_function,
-                "el": request_id,
-            }
-            plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict_2)
-
-    def dump(self, resource_id):
-        self._post_analytics(c.user, "Resource", "Download", resource_id)
-        return DatastoreController.dump(self, resource_id)
 
 class GAOrganizationController(OrganizationController):
     def _post_analytics(self, user, request_obj_type, request_function, request_id):
-        if config.get('googleanalytics.id'):
+        if toolkit.config.get('googleanalytics.id'):
             data_dict = {
                 "v": 1,
-                "tid": config.get('googleanalytics.id'),
+                "tid": toolkit.config.get('googleanalytics.id'),
                 "cid": hashlib.md5(user).hexdigest(),
                 # customer id should be obfuscated
                 "t": "event",
@@ -209,10 +202,10 @@ class GAOrganizationController(OrganizationController):
             }
             plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
 
-        if config.get('googleanalytics.id2'):
+        if toolkit.config.get('googleanalytics.id2'):
             data_dict_2 = {
                 "v": 1,
-                "tid": config.get('googleanalytics.id2'),
+                "tid": toolkit.config.get('googleanalytics.id2'),
                 "cid": hashlib.md5(user).hexdigest(),
                 # customer id should be obfuscated
                 "t": "event",
@@ -228,23 +221,24 @@ class GAOrganizationController(OrganizationController):
     def read(self, id, limit=20):
         # We do not want to perform read operation on organization id "new",
         # where it results in a NotFound error
-        if id!="new":
+        if id != "new":
             try:
                 org = toolkit.get_action('organization_show')({},{'id':id})
                 org_title = org.get('title')
                 self._post_analytics(c.user,"Organization", "View", org_title)
-            except:
+            except Exception:
                 log.debug('Organization not found: ' + id)
         else:
             return OrganizationController.new(self)
         return OrganizationController.read(self, id, limit=20)
 
+
 class GAPackageController(PackageController):
     def _post_analytics(self, user, request_obj_type, request_function, request_id):
-        if config.get('googleanalytics.id'):
+        if toolkit.config.get('googleanalytics.id'):
             data_dict = {
                 "v": 1,
-                "tid": config.get('googleanalytics.id'),
+                "tid": toolkit.config.get('googleanalytics.id'),
                 "cid": hashlib.md5(user).hexdigest(),
                 # customer id should be obfuscated
                 "t": "event",
@@ -256,10 +250,10 @@ class GAPackageController(PackageController):
                 "el": request_id,
             }
             plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
-        if config.get('googleanalytics.id2'):
+        if toolkit.config.get('googleanalytics.id2'):
             data_dict_2 = {
                 "v": 1,
-                "tid": config.get('googleanalytics.id2'),
+                "tid": toolkit.config.get('googleanalytics.id2'),
                 "cid": hashlib.md5(user).hexdigest(),
                 # customer id should be obfuscated
                 "t": "event",
@@ -296,8 +290,8 @@ class GAPackageController(PackageController):
     def get_package_org_id(self, package_id):
         org_id = ''
         try:
-            package = toolkit.get_action('package_show')({},{'id':package_id})
+            package = toolkit.get_action('package_show')({}, {'id': package_id})
             org_id = package.get('organization').get('title')
-        except:
+        except Exception:
             log.debug('Dataset not found: ' + package_id)
         return org_id

@@ -3,7 +3,7 @@ import queue
 
 import ckan.plugins as plugins
 
-from ckanext.googleanalytics.views import ga
+from ckanext.googleanalytics.views import ga, dataset_b, datastore_b, organization_b
 from ckanext.googleanalytics.cli import get_commands
 
 
@@ -16,7 +16,7 @@ class GAMixinPlugin(plugins.SingletonPlugin):
     # IBlueprint
 
     def get_blueprint(self):
-        return [ga]
+        return [ga, dataset_b, datastore_b, organization_b]
 
     # IClick
 
