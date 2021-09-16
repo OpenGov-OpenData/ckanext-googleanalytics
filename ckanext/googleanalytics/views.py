@@ -32,7 +32,7 @@ def action(logic_function, ver=api.API_MAX_VERSION):
                 id = request_data["q"]
             if "query" in request_data:
                 id = request_data[u"query"]
-            post_analytics("CKAN API Request", logic_function, "", id)
+            post_analytics("CKAN API Request", logic_function, "API Request", id)
     except Exception as e:
         log.debug(e)
         pass
@@ -112,7 +112,7 @@ ga.add_url_rule(
 
 def post_analytics(request_obj_type, request_function, event_type, request_id=''):
     args = tk.request.view_args
-    r_id = args.get('id')
+    r_id = args.get('id', '')
     try:
         package = tk.get_action('package_show')({}, {'id': r_id})
         org_id = package.get('organization').get('title')
@@ -134,9 +134,9 @@ def post_analytics(request_obj_type, request_function, event_type, request_id=''
             "t": "event",
             "dh": tk.request.environ["HTTP_HOST"],
             "dp": tk.request.environ["PATH_INFO"],
-            "dr": tk.request.environ.get("HTTP_REFERER", ""),
+            "dr": tk.request.environ.get("HTTP_REFERER", tk.request.base_url),
             "ec": event_type,
-            "ea": request_obj_type+request_function,
+            "ea": '{} {}'.format(request_obj_type, request_function),
             "el": org_id or request_id,
         }
         plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)

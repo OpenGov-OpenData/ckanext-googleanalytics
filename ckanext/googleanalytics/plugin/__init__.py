@@ -9,7 +9,6 @@ import threading
 
 import requests
 
-import ckan.lib.helpers as h
 import ckan.plugins as p
 import ckan.plugins.toolkit as tk
 
@@ -46,10 +45,16 @@ class AnalyticsPostThread(threading.Thread):
             data = urlencode(data_dict)
             log.debug("Sending API event to Google Analytics: " + data)
             # send analytics
+            headers = {
+                'user-agent': ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+                               'AppleWebKit/537.36 (KHTML, like Gecko) '
+                               'Chrome/93.0.4577.63 Safari/537.36')
+            }
             res = requests.post(
-                "http://www.google-analytics.com/collect",
-                data,
+                "https://www.google-analytics.com/collect",
+                data=data,
                 timeout=10,
+                headers=headers,
             )
             # signals to queue job is done
             self.queue.task_done()
