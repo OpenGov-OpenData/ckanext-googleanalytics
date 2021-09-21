@@ -1,15 +1,14 @@
-CKAN Google Analytics Extension
-===============================
+# CKAN Google Analytics Extension
 
 **Status:** Production
 
-**CKAN Version:** >= 1.5.*
+**CKAN Version:** >= 2.7
 
 A CKAN extension that both sends tracking data to Google Analytics and
 retrieves statistics from Google Analytics and inserts them into CKAN pages.
 
-Features
---------
+## Features
+
 
 * Puts the Google Analytics asynchronous tracking code into your page headers
   for basic Google Analytics page tracking.
@@ -24,48 +23,22 @@ Features
 * Add Google Analytics Event Tracking function that can be used in any exstension
   to create your custom events tracking.
 
-  ``ckanext.googleanalytics.plugin._post_analytics``
+		ckanext.googleanalytics.plugin._post_analytics
 
-* Adds Google Analytics Event Tracking to group links on the home page,
-  user profile links, editing and saving user profiles, etc.
+## Installation
 
-  *Only if* ``googleanalytics.track_events = true`` *is in your CKAN ini file.*
-
-  *CKAN 1.x only*.
-
-* Puts download stats into dataset pages, e.g. "[downloaded 4 times]".
-
-  *CKAN 1.x only.*
-
-* Provides a ``/analytics/dataset/top`` page that shows the most popular
-  datasets and resources
-
-  *CKAN 1.x only*
-
-CKAN 1.x Support
-----------------
-
-To use ckanext-googleanalytics with CKAN 1.x, make sure you have
-``ckan.legacy_templates = true`` in your CKAN ini file.
-
-Installation
-------------
 
 1. Install the extension as usual, e.g. (from an activated virtualenv):
 
-    ::
-
-    $ pip install -e  git+https://github.com/OpenGov-OpenData/ckanext-googleanalytics.git#egg=ckanext-googleanalytics
-    $ pip install -r ckanext-googleanalytics/requirements.txt
+		$ pip install -e  git+https://github.com/OpenGov-OpenData/ckanext-googleanalytics.git#egg=ckanext-googleanalytics
+		$ pip install -r ckanext-googleanalytics/requirements.txt
 
 2. Edit your development.ini (or similar) to provide these necessary parameters:
 
-    ::
-
-      googleanalytics.id = UA-1010101-1
-      googleanalytics.account = Account name (i.e. data.gov.uk, see top level item at https://www.google.com/analytics)
-      googleanalytics.username = googleaccount@gmail.com
-      googleanalytics.password = googlepassword
+		googleanalytics.id = UA-1010101-1
+		googleanalytics.account = Account name (i.e. data.gov.uk, see top level item at https://www.google.com/analytics)
+		googleanalytics.username = googleaccount@gmail.com
+        googleanalytics.password = googlepassword
 
    Note that your password will probably be readable by other people;
    so you may want to set up a new gmail account specifically for
@@ -74,26 +47,20 @@ Installation
 3. Edit again your configuration ini file to activate the plugin
    with:
 
-   ::
-
-      ckan.plugins = googleanalytics
+		ckan.plugins = googleanalytics
 
    (If there are other plugins activated, add this to the list.  Each
    plugin should be separated with a space).
 
-4. If you are using this plugin with a version of CKAN < 2.0 then you should
-   also put the following in your ini file::
+4. Finally, there are some optional configuration settings (shown here
+   with their default settings)
 
-       ckan.legacy_templates = true
-
-
-5. Finally, there are some optional configuration settings (shown here
-   with their default settings)::
-
-      googleanalytics_resource_prefix = /downloads/
-      googleanalytics.domain = auto
-      googleanalytics.track_events = false
-      googleanalytics.fields = {}
+		googleanalytics_resource_prefix = /downloads/
+		googleanalytics.domain = auto
+        googleanalytics.track_events = false
+        googleanalytics.fields = {}
+        googleanalytics.enable_user_id = false
+        googleanalytics.download_handler = ckan.views.resource:download
 
    ``resource_prefix`` is an arbitrary identifier so that we can query
    for downloads in Google Analytics.  It can theoretically be any
@@ -116,8 +83,21 @@ Installation
 
    ``fields`` allows you to specify various options when creating the tracker. See `Google's documentation <https://developers.google.com/analytics/devguides/collection/analyticsjs/field-reference>`.
 
-Domain Linking
---------------
+   If ``enable_user_id`` is set to ``true``, then logged in users will be tracked into the Google Analytics' dashboard.
+   This way metrics can be tracked for every logged in user. You can read more
+   about this feature and its benefits `here <https://support.google.com/analytics/answer/3123662>`_.
+
+   When resource is downloaded, ckanext-googleanalytics posts event to
+   GA and calls default download callback. If you are using CKAN>=2.9
+   and some of your plugins redefines `resource.download`
+   route(ckanext-cloudstorage, for example), you can specify which
+   function must be called instead of `ckan.views.resource:download`
+   via `ckanext.googleanalytics.download_handler` config variable. For ckanext-cloudstorage you can use:
+
+		ckanext.googleanalytics.download_handler = ckanext.cloudstorage.views:download
+
+# Domain Linking
+
 
 This plugin supports cross-domain tracking using Googles' site linking feature.
 
@@ -125,18 +105,18 @@ To use this, set the ``googleanalytics.linked_domains`` configuration option to 
 
 See `Googles' documentation<https://support.google.com/analytics/answer/1034342?hl=en>`_ for more information
 
-Setting Up Statistics Retrieval from Google Analytics
------------------------------------------------------
+# Setting Up Statistics Retrieval from Google Analytics
+
 
 1. Run the following command from ``src/ckanext-googleanalytics`` to
    set up the required database tables (of course, altering the
-   ``--config`` option to point to your site config file)::
+   ``--config`` option to point to your site config file):
 
-       paster initdb --config=../ckan/development.ini
+		paster initdb --config=../ckan/development.ini
 
 2. Optionally, add::
 
-       googleanalytics.show_downloads = true
+		googleanalytics.show_downloads = true
 
    to your CKAN ini file. If ``show_downloads`` is set, a download count for
    resources will be displayed on individual package pages.
@@ -150,7 +130,7 @@ Setting Up Statistics Retrieval from Google Analytics
 6. Import Google stats by running the following command from
    ``src/ckanext-googleanalytics``::
 
-       paster loadanalytics credentials.json --config=../ckan/development.ini
+		paster loadanalytics credentials.json --config=../ckan/development.ini
 
    (Of course, pointing config at your specific site config and credentials.json at the
    key file obtained from the authorization step)
@@ -170,8 +150,8 @@ Setting Up Statistics Retrieval from Google Analytics
    remember to run it by hand, or your statistics won't get updated.
 
 
-Authorization
---------------
+## Authorization
+
 
 Before ckanext-googleanalytics can retrieve statistics from Google Analytics, you need to set up the OAUTH details which you can do by following the `instructions <https://developers.google.com/analytics/devguides/reporting/core/v3/quickstart/service-py>`_ the outcome of which will be a file with authentication key. These steps are below for convenience:
 
@@ -188,17 +168,16 @@ Before ckanext-googleanalytics can retrieve statistics from Google Analytics, yo
 6. Find "User management" button in corresponding column. Add service account using Service account ID(email) generated in 3rd step and grant "Read" role to it.
 
 
-Testing
--------
+## Testing
+
 
 There are some very high-level functional tests that you can run using::
 
-  (pyenv)~/pyenv/src/ckan$ nosetests --ckan ../ckanext-googleanalytics/tests/
+	(pyenv)~/pyenv/src/ckan$ nosetests --ckan ../ckanext-googleanalytics/tests/
 
 (note -- that's run from the CKAN software root, not the extension root)
 
-Future
-------
+## Future
 
 This is a bare-bones, first release of the software.  There are
 several directions it could take in the future.
