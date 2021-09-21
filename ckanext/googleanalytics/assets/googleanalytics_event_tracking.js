@@ -10,6 +10,8 @@ this.ckan.module("google-analytics", function(jQuery, _) {
         var resource_url = encodeURIComponent(jQuery(this).prop("href"));
         if (resource_url) {
           ga("send", "event", "Resource", "Download", resource_url);
+          ga('send', 'event', 'Package', 'Download', resource_url);
+          ga('send', 'event', 'Organization', 'Download', resource_url);
         }
       });
     }

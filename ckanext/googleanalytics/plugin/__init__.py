@@ -75,7 +75,10 @@ class GoogleAnalyticsPlugin(GAMixinPlugin, p.SingletonPlugin):
             msg = "Missing googleanalytics.id in config"
             raise GoogleAnalyticsException(msg)
         self.googleanalytics_id = config["googleanalytics.id"]
-        self.googleanalytics_id2 = config["googleanalytics.id2"] if "googleanalytics.id2" in config else None
+        if "googleanalytics.id2" in config:
+            self.googleanalytics_id2 = config.get("googleanalytics.id2")
+        else:
+            self.googleanalytics_id2 = None
         self.googleanalytics_domain = config.get(
             "googleanalytics.domain", "auto"
         )
@@ -119,7 +122,7 @@ class GoogleAnalyticsPlugin(GAMixinPlugin, p.SingletonPlugin):
         # spawn a pool of 5 threads, and pass them queue instance
         for i in range(5):
             t = AnalyticsPostThread(self.analytics_queue)
-            t.setDaemon(True)
+            t.daemon = True
             t.start()
 
     def update_config(self, config):

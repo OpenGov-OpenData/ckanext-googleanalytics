@@ -54,6 +54,10 @@ class GAMixinPlugin(plugins.SingletonPlugin):
             m.connect('dataset_read', '/dataset/{id}', action='read', ckan_icon='sitemap')
             m.connect('/dataset/{id}/resource/{resource_id}', action='resource_read')
 
+        with SubMapper(map, controller='ckanext.googleanalytics.controller:GADatastoreController') as m:
+            m.connect('/datastore/dump/{resource_id}', action='dump')
+            m.connect('/datastore/download/{resource_id}', action='dump')
+
         # /api ver 3 or none
         with SubMapper(
             map,
@@ -95,9 +99,6 @@ class GAMixinPlugin(plugins.SingletonPlugin):
             m.connect(
                 "/rest/{register}/{id}", action="delete", conditions=DELETE
             )
-        with SubMapper(map, controller='ckanext.googleanalytics.controller:GADatastoreController') as m:
-            m.connect('/datastore/dump/{resource_id}', action='dump')
-            m.connect('/datastore/download/{resource_id}', action='dump')
 
         return map
 
@@ -144,13 +145,13 @@ class GAMixinPlugin(plugins.SingletonPlugin):
 
 def wrap_resource_download(func):
     def func_wrapper(cls, id, resource_id, filename=None):
-        resource = tk.get_action('resource_show')({}, {'id': resource_id})
-        resource_name = resource.get('name')
-        package_id = resource.get('package_id')
-        package = tk.get_action('package_show')({}, {'id': package_id})
-        package_name = package.get('name')
-        organization_id = package.get('organization').get('id')
-        organization_title = package.get('organization').get('title')
+        resource_dict = tk.get_action('resource_show')({}, {'id': resource_id})
+        resource_name = resource_dict.get('name')
+        package_id = resource_dict.get('package_id')
+        package_dict = tk.get_action('package_show')({}, {'id': package_id})
+        package_name = package_dict.get('name')
+        organization_id = package_dict.get('organization').get('id')
+        organization_title = package_dict.get('organization').get('title')
 
         try:
             resource_alias = resource_id
