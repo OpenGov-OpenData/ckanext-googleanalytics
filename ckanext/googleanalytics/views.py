@@ -20,6 +20,7 @@ CONFIG_HANDLER_PATH = "googleanalytics.download_handler"
 
 log = logging.getLogger(__name__)
 ga = Blueprint("google_analytics", "google_analytics")
+_ = tk._
 
 
 def action(logic_function, ver=api.API_MAX_VERSION):
@@ -66,13 +67,16 @@ def download(id, resource_id, filename=None, package_type="dataset"):
         log.debug("Use default CKAN callback for resource.download")
         handler = resource.download
 
-    resource_dict = tk.get_action('resource_show')({}, {'id': resource_id})
-    resource_name = resource_dict.get('name')
-    package_id = resource_dict.get('package_id')
-    package_dict = tk.get_action('package_show')({}, {'id': package_id})
-    package_name = package_dict.get('name')
-    organization_id = package_dict.get('organization').get('id')
-    organization_title = package_dict.get('organization').get('title')
+    try:
+        resource_dict = tk.get_action('resource_show')({}, {'id': resource_id})
+        resource_name = resource_dict.get('name')
+        package_id = resource_dict.get('package_id')
+        package_dict = tk.get_action('package_show')({}, {'id': package_id})
+        package_name = package_dict.get('name')
+        organization_id = package_dict.get('organization').get('id')
+        organization_title = package_dict.get('organization').get('title')
+    except (tk.ObjectNotFound, tk.NotAuthorized):
+        return tk.abort(404, _('Resource not found'))
 
     try:
         resource_alias = resource_id
