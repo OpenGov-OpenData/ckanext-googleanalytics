@@ -137,16 +137,18 @@ def before_organization_request():
     if tk.request.method == 'GET':
         args = tk.request.view_args
         org_id = args.get('id', '')
-        org_dict = tk.get_action('organization_show')({},{'id': org_id})
-        org_title = org_dict.get('title')
-        _post_analytics(
-            tk.c.user,
-            "CKAN Organization Page View",
-            "Organization",
-            "View",
-            org_title
-        )
-
+        try:
+            org_dict = tk.get_action('organization_show')({},{'id': org_id})
+            org_title = org_dict.get('title')
+            _post_analytics(
+                tk.c.user,
+                "CKAN Organization Page View",
+                "Organization",
+                "View",
+                org_title
+            )
+        except (tk.ObjectNotFound, tk.NotAuthorized):
+            pass
 
 ga_organization = Blueprint(
     u'organization_googleanalytics',
@@ -156,6 +158,7 @@ ga_organization = Blueprint(
                   u'is_organization': True}
 )
 ga_organization.before_request(before_organization_request)
+ga_organization.add_url_rule(u'/new', methods=[u'GET'], view_func=group.CreateGroupView.as_view('new'))
 ga_organization.add_url_rule(u'/<id>', methods=[u'GET'], view_func=group.read)
 
 
@@ -163,15 +166,19 @@ def before_dataset_request():
     if tk.request.method == 'GET':
         args = tk.request.view_args
         package_id = args.get('id', '')
-        package_dict = tk.get_action('package_show')({}, {'id': package_id})
-        org_title = package_dict.get('organization', {}).get('title')
-        _post_analytics(
-            tk.c.user,
-            "CKAN Organization Page View",
-            "Organization",
-            "View",
-            org_title
-        )
+        if package_id and package_id != 'new':
+            try:
+                package_dict = tk.get_action('package_show')({}, {'id': package_id})
+                org_title = package_dict.get('organization', {}).get('title')
+                _post_analytics(
+                    tk.c.user,
+                    "CKAN Organization Page View",
+                    "Organization",
+                    "View",
+                    org_title
+                )
+            except (tk.ObjectNotFound, tk.NotAuthorized):
+                pass
 
 
 ga_dataset = Blueprint(
@@ -181,22 +188,26 @@ ga_dataset = Blueprint(
     url_defaults={u'package_type': u'dataset'}
 )
 ga_dataset.before_request(before_dataset_request)
-ga_dataset.add_url_rule(u'/<id>', view_func=dataset.read)
+ga_dataset.add_url_rule(u'/new', methods=[u'GET'], view_func=dataset.CreateView.as_view('new'))
+ga_dataset.add_url_rule(u'/<id>', methods=[u'GET'], view_func=dataset.read)
 
 
 def before_resource_request():
     if tk.request.method == 'GET':
         args = tk.request.view_args
         package_id = args.get('id', '')
-        package_dict = tk.get_action('package_show')({}, {'id': package_id})
-        org_title = package_dict.get('organization', {}).get('title')
-        _post_analytics(
-            tk.c.user,
-            "CKAN Organization Page View",
-            "Organization",
-            "View",
-            org_title
-        )
+        try:
+            package_dict = tk.get_action('package_show')({}, {'id': package_id})
+            org_title = package_dict.get('organization', {}).get('title')
+            _post_analytics(
+                tk.c.user,
+                "CKAN Organization Page View",
+                "Organization",
+                "View",
+                org_title
+            )
+        except (tk.ObjectNotFound, tk.NotAuthorized):
+            pass
 
 
 ga_resource = Blueprint(

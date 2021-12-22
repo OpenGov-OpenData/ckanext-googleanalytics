@@ -181,14 +181,14 @@ class GAOrganizationController(OrganizationController):
     def read(self, id, limit=20):
         # We do not want to perform read operation on organization id "new",
         # where it results in a NotFound error
-        if id != "new":
+        if id and id != "new":
             try:
                 org = toolkit.get_action('organization_show')({},{'id':id})
                 org_title = org.get('title')
                 self._post_analytics(c.user, "Organization", "View", org_title)
-            except Exception:
-                log.debug('Organization not found: ' + id)
-        else:
+            except (toolkit.ObjectNotFound, toolkit.NotAuthorized):
+                pass
+        elif id == "new":
             return OrganizationController.new(self)
         return OrganizationController.read(self, id, limit=20)
 
@@ -237,7 +237,7 @@ class GAPackageController(PackageController):
                 self._post_analytics(c.user, "Organization", "View", org_id)
         # If we simply return PackageController.read() or return w/o a
         # PackageController.new() operation, a blank page or error page will appear
-        else:
+        elif id == "new":
             return PackageController.new(self)
         return PackageController.read(self, id)
 
@@ -252,8 +252,8 @@ class GAPackageController(PackageController):
         try:
             package = toolkit.get_action('package_show')({}, {'id': package_id})
             org_id = package.get('organization').get('title')
-        except Exception:
-            log.debug('Dataset not found: ' + package_id)
+        except (toolkit.ObjectNotFound, toolkit.NotAuthorized):
+            pass
         return org_id
 
 
