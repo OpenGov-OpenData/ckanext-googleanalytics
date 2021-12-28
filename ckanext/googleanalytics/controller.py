@@ -189,7 +189,6 @@ class GAOrganizationController(OrganizationController):
             self._post_analytics(c.user, "Organization", "View", org_title)
         except Exception as e:
             log.debug(e)
-            pass
         return OrganizationController.read(self, id, limit=20)
 
 
@@ -239,7 +238,6 @@ class GAPackageController(PackageController):
                 self._post_analytics(c.user, "Organization", "View", org_id)
         except Exception as e:
             log.debug(e)
-            pass
         return PackageController.read(self, id)
 
     def resource_read(self, id, resource_id):
@@ -249,7 +247,6 @@ class GAPackageController(PackageController):
                 self._post_analytics(c.user, "Organization", "View", org_id)
         except Exception as e:
             log.debug(e)
-            pass
         return PackageController.resource_read(self, id, resource_id)
 
     def get_package_org_id(self, package_id):
@@ -259,7 +256,6 @@ class GAPackageController(PackageController):
             org_id = package.get('organization', {}).get('title')
         except Exception as e:
             log.debug(e)
-            pass
         return org_id
 
 
