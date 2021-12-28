@@ -154,8 +154,10 @@ def wrap_resource_download(func):
             package_id = resource_dict.get('package_id')
             package_dict = tk.get_action('package_show')({}, {'id': package_id})
             package_name = package_dict.get('name')
-            organization_id = package_dict.get('organization').get('id')
-            organization_title = package_dict.get('organization').get('title')
+            organization_id = package_dict.get('organization', {}).get('id')
+            organization_title = package_dict.get('organization', {}).get('title')
+        except tk.ValidationError as error:
+            return tk.abort(400, error.message)
         except (tk.ObjectNotFound, tk.NotAuthorized):
             return tk.abort(404, _('Resource not found'))
 

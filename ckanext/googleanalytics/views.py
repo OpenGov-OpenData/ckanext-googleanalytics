@@ -73,8 +73,10 @@ def download(id, resource_id, filename=None, package_type="dataset"):
         package_id = resource_dict.get('package_id')
         package_dict = tk.get_action('package_show')({}, {'id': package_id})
         package_name = package_dict.get('name')
-        organization_id = package_dict.get('organization').get('id')
-        organization_title = package_dict.get('organization').get('title')
+        organization_id = package_dict.get('organization', {}).get('id')
+        organization_title = package_dict.get('organization', {}).get('title')
+    except tk.ValidationError as error:
+        return tk.abort(400, error.message)
     except (tk.ObjectNotFound, tk.NotAuthorized):
         return tk.abort(404, _('Resource not found'))
 
@@ -147,8 +149,8 @@ def before_organization_request():
                 "View",
                 org_title
             )
-        except (tk.ObjectNotFound, tk.NotAuthorized):
-            pass
+        except Exception as e:
+            log.debug(e)
 
 ga_organization = Blueprint(
     u'organization_googleanalytics',
@@ -177,9 +179,8 @@ def before_dataset_request():
                     "View",
                     org_title
                 )
-            except (tk.ObjectNotFound, tk.NotAuthorized):
-                pass
-
+            except Exception as e:
+                log.debug(e)
 
 ga_dataset = Blueprint(
     u'dataset_googleanalytics',
@@ -206,9 +207,8 @@ def before_resource_request():
                 "View",
                 org_title
             )
-        except (tk.ObjectNotFound, tk.NotAuthorized):
-            pass
-
+        except Exception as e:
+            log.debug(e)
 
 ga_resource = Blueprint(
     u'resource_googleanalytics',
@@ -235,7 +235,6 @@ def before_datastore_request():
             "Download",
             resource_id
         )
-
 
 ga_datastore = Blueprint(
     u'datastore_googleanalytics',
