@@ -20,6 +20,7 @@ CONFIG_HANDLER_PATH = "googleanalytics.download_handler"
 
 log = logging.getLogger(__name__)
 ga = Blueprint("google_analytics", "google_analytics")
+_ = tk._
 
 
 def action(logic_function, ver=api.API_MAX_VERSION):
@@ -66,13 +67,18 @@ def download(id, resource_id, filename=None, package_type="dataset"):
         log.debug("Use default CKAN callback for resource.download")
         handler = resource.download
 
-    resource_dict = tk.get_action('resource_show')({}, {'id': resource_id})
-    resource_name = resource_dict.get('name')
-    package_id = resource_dict.get('package_id')
-    package_dict = tk.get_action('package_show')({}, {'id': package_id})
-    package_name = package_dict.get('name')
-    organization_id = package_dict.get('organization').get('id')
-    organization_title = package_dict.get('organization').get('title')
+    try:
+        resource_dict = tk.get_action('resource_show')({}, {'id': resource_id})
+        resource_name = resource_dict.get('name')
+        package_id = resource_dict.get('package_id')
+        package_dict = tk.get_action('package_show')({}, {'id': package_id})
+        package_name = package_dict.get('name')
+        organization_id = package_dict.get('organization', {}).get('id')
+        organization_title = package_dict.get('organization', {}).get('title')
+    except tk.ValidationError as error:
+        return tk.abort(400, error.message)
+    except (tk.ObjectNotFound, tk.NotAuthorized):
+        return tk.abort(404, _('Resource not found'))
 
     try:
         resource_alias = resource_id
@@ -133,16 +139,22 @@ def before_organization_request():
     if tk.request.method == 'GET':
         args = tk.request.view_args
         org_id = args.get('id', '')
-        org_dict = tk.get_action('organization_show')({},{'id': org_id})
-        org_title = org_dict.get('title')
-        _post_analytics(
-            tk.c.user,
-            "CKAN Organization Page View",
-            "Organization",
-            "View",
-            org_title
-        )
 
+        if org_id == 'new':
+            return
+
+        try:
+            org_dict = tk.get_action('organization_show')({},{'id': org_id})
+            org_title = org_dict.get('title')
+            _post_analytics(
+                tk.c.user,
+                "CKAN Organization Page View",
+                "Organization",
+                "View",
+                org_title
+            )
+        except Exception as e:
+            log.debug(e)
 
 ga_organization = Blueprint(
     u'organization_googleanalytics',
@@ -152,6 +164,7 @@ ga_organization = Blueprint(
                   u'is_organization': True}
 )
 ga_organization.before_request(before_organization_request)
+ga_organization.add_url_rule(u'/new', view_func=group.CreateGroupView.as_view('new'))
 ga_organization.add_url_rule(u'/<id>', methods=[u'GET'], view_func=group.read)
 
 
@@ -159,16 +172,22 @@ def before_dataset_request():
     if tk.request.method == 'GET':
         args = tk.request.view_args
         package_id = args.get('id', '')
-        package_dict = tk.get_action('package_show')({}, {'id': package_id})
-        org_title = package_dict.get('organization', {}).get('title')
-        _post_analytics(
-            tk.c.user,
-            "CKAN Organization Page View",
-            "Organization",
-            "View",
-            org_title
-        )
 
+        if package_id == 'new':
+            return
+
+        try:
+            package_dict = tk.get_action('package_show')({}, {'id': package_id})
+            org_title = package_dict.get('organization', {}).get('title')
+            _post_analytics(
+                tk.c.user,
+                "CKAN Organization Page View",
+                "Organization",
+                "View",
+                org_title
+            )
+        except Exception as e:
+            log.debug(e)
 
 ga_dataset = Blueprint(
     u'dataset_googleanalytics',
@@ -177,23 +196,31 @@ ga_dataset = Blueprint(
     url_defaults={u'package_type': u'dataset'}
 )
 ga_dataset.before_request(before_dataset_request)
-ga_dataset.add_url_rule(u'/<id>', view_func=dataset.read)
+ga_dataset.add_url_rule(u'/new', view_func=dataset.CreateView.as_view('new'))
+ga_dataset.add_url_rule(u'/<id>', methods=[u'GET'], view_func=dataset.read)
 
 
 def before_resource_request():
     if tk.request.method == 'GET':
         args = tk.request.view_args
         package_id = args.get('id', '')
-        package_dict = tk.get_action('package_show')({}, {'id': package_id})
-        org_title = package_dict.get('organization', {}).get('title')
-        _post_analytics(
-            tk.c.user,
-            "CKAN Organization Page View",
-            "Organization",
-            "View",
-            org_title
-        )
+        resource_id = args.get('resource_id', '')
 
+        if resource_id == 'new':
+            return
+
+        try:
+            package_dict = tk.get_action('package_show')({}, {'id': package_id})
+            org_title = package_dict.get('organization', {}).get('title')
+            _post_analytics(
+                tk.c.user,
+                "CKAN Organization Page View",
+                "Organization",
+                "View",
+                org_title
+            )
+        except Exception as e:
+            log.debug(e)
 
 ga_resource = Blueprint(
     u'resource_googleanalytics',
@@ -202,6 +229,7 @@ ga_resource = Blueprint(
     url_defaults={u'package_type': u'dataset'}
 )
 ga_resource.before_request(before_resource_request)
+ga_resource.add_url_rule(u'/new', view_func=resource.CreateView.as_view('new'))
 ga_resource.add_url_rule(
     u'/<resource_id>',
     view_func=resource.read,
@@ -221,14 +249,13 @@ def before_datastore_request():
             resource_id
         )
 
-
 ga_datastore = Blueprint(
     u'datastore_googleanalytics',
     __name__,
     url_prefix=u'/datastore',
 )
 ga_datastore.before_request(before_datastore_request)
-ga_datastore.add_url_rule("/dump/<resource_id>'", view_func=dump)
+ga_datastore.add_url_rule('/dump/<resource_id>', view_func=dump)
 
 
 def _post_analytics(

@@ -181,15 +181,14 @@ class GAOrganizationController(OrganizationController):
     def read(self, id, limit=20):
         # We do not want to perform read operation on organization id "new",
         # where it results in a NotFound error
-        if id != "new":
-            try:
-                org = toolkit.get_action('organization_show')({},{'id':id})
-                org_title = org.get('title')
-                self._post_analytics(c.user, "Organization", "View", org_title)
-            except Exception:
-                log.debug('Organization not found: ' + id)
-        else:
+        if id == "new":
             return OrganizationController.new(self)
+        try:
+            org = toolkit.get_action('organization_show')({}, {'id': id})
+            org_title = org.get('title')
+            self._post_analytics(c.user, "Organization", "View", org_title)
+        except Exception as e:
+            log.debug(e)
         return OrganizationController.read(self, id, limit=20)
 
 
@@ -231,29 +230,32 @@ class GAPackageController(PackageController):
     def read(self, id):
         # We do not want to perform read operation on package id "new",
         # where it results in the package not being found
-        if id != "new":
+        if id == "new":
+            return PackageController.new(self)
+        try:
             org_id = self.get_package_org_id(id)
             if org_id:
                 self._post_analytics(c.user, "Organization", "View", org_id)
-        # If we simply return PackageController.read() or return w/o a
-        # PackageController.new() operation, a blank page or error page will appear
-        else:
-            return PackageController.new(self)
+        except Exception as e:
+            log.debug(e)
         return PackageController.read(self, id)
 
     def resource_read(self, id, resource_id):
-        org_id = self.get_package_org_id(id)
-        if org_id:
-            self._post_analytics(c.user, "Organization", "View", org_id)
+        try:
+            org_id = self.get_package_org_id(id)
+            if org_id:
+                self._post_analytics(c.user, "Organization", "View", org_id)
+        except Exception as e:
+            log.debug(e)
         return PackageController.resource_read(self, id, resource_id)
 
     def get_package_org_id(self, package_id):
         org_id = ''
         try:
             package = toolkit.get_action('package_show')({}, {'id': package_id})
-            org_id = package.get('organization').get('title')
-        except Exception:
-            log.debug('Dataset not found: ' + package_id)
+            org_id = package.get('organization', {}).get('title')
+        except Exception as e:
+            log.debug(e)
         return org_id
 
 

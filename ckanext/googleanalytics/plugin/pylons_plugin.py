@@ -12,7 +12,10 @@ from ckan.controllers.package import PackageController
 from pylons import config
 from routes.mapper import SubMapper
 
+
 log = logging.getLogger(__name__)
+
+_ = tk._
 
 
 class GAMixinPlugin(plugins.SingletonPlugin):
@@ -145,13 +148,18 @@ class GAMixinPlugin(plugins.SingletonPlugin):
 
 def wrap_resource_download(func):
     def func_wrapper(cls, id, resource_id, filename=None):
-        resource_dict = tk.get_action('resource_show')({}, {'id': resource_id})
-        resource_name = resource_dict.get('name')
-        package_id = resource_dict.get('package_id')
-        package_dict = tk.get_action('package_show')({}, {'id': package_id})
-        package_name = package_dict.get('name')
-        organization_id = package_dict.get('organization').get('id')
-        organization_title = package_dict.get('organization').get('title')
+        try:
+            resource_dict = tk.get_action('resource_show')({}, {'id': resource_id})
+            resource_name = resource_dict.get('name')
+            package_id = resource_dict.get('package_id')
+            package_dict = tk.get_action('package_show')({}, {'id': package_id})
+            package_name = package_dict.get('name')
+            organization_id = package_dict.get('organization', {}).get('id')
+            organization_title = package_dict.get('organization', {}).get('title')
+        except tk.ValidationError as error:
+            return tk.abort(400, error.message)
+        except (tk.ObjectNotFound, tk.NotAuthorized):
+            return tk.abort(404, _('Resource not found'))
 
         try:
             resource_alias = resource_id
