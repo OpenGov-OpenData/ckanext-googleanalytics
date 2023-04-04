@@ -29,7 +29,6 @@ def download_handler():
     return handler
 
 
-
 def tracking_mode():
     type_ = tk.config.get("googleanalytics.tracking_mode")
     if type_:

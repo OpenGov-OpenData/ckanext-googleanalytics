@@ -112,7 +112,7 @@ def before_organization_request():
             return
 
         try:
-            org_dict = tk.get_action('organization_show')({},{'id': org_id})
+            org_dict = tk.get_action('organization_show')({}, {'id': org_id})
             org_title = org_dict.get('title')
             _post_analytics(
                 tk.c.user,
@@ -123,6 +123,7 @@ def before_organization_request():
             )
         except Exception as e:
             log.debug(e)
+
 
 ga_organization = Blueprint(
     u'organization_googleanalytics',
@@ -157,6 +158,7 @@ def before_dataset_request():
         except Exception as e:
             log.debug(e)
 
+
 ga_dataset = Blueprint(
     u'dataset_googleanalytics',
     __name__,
@@ -190,6 +192,7 @@ def before_resource_request():
         except Exception as e:
             log.debug(e)
 
+
 ga_resource = Blueprint(
     u'resource_googleanalytics',
     __name__,
@@ -216,6 +219,7 @@ def before_datastore_request():
             "Download",
             resource_id
         )
+
 
 ga_datastore = Blueprint(
     u'datastore_googleanalytics',

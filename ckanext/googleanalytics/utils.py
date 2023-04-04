@@ -22,7 +22,6 @@ def send_event(data):
             "payload": data["payload"],
         })
 
-
     return _ga_handler(data)
 
 
@@ -46,7 +45,7 @@ def _mp_api_handler(data_dict):
         data=json.dumps({
             "client_id": config.measurement_protocol_client_id(),
             "non_personalized_ads": False,
-            "events":[{
+            "events": [{
                 "name": data_dict["action"],
                 "params": data_dict["payload"]
             }]
