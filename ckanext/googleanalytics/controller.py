@@ -1,23 +1,21 @@
 from __future__ import absolute_import
 
-import six
-if not six.PY2:
-    raise ImportError("This controller has only ckan2.7 and python2.7 compatibility!!!")
-
 import logging
 from ckan.lib.base import BaseController, c, render, request
 from . import dbutil
 
-import ckan.logic as logic
 import hashlib
 from . import plugin
+
 from paste.util.multidict import MultiDict
 
-import ckan.plugins.toolkit as toolkit
 from ckan.controllers.api import ApiController
 from ckan.controllers.organization import OrganizationController
 from ckan.controllers.package import PackageController
 from ckanext.datastore.controller import DatastoreController
+
+import ckan.plugins.toolkit as tk
+from ckanext.googleanalytics import config
 
 
 log = logging.getLogger("ckanext.googleanalytics")
@@ -35,41 +33,24 @@ class GAApiController(ApiController):
     def _post_analytics(
         self, user, request_obj_type, request_function, request_id
     ):
-        if toolkit.config.get("googleanalytics.id"):
-            data_dict = {
-                "v": 1,
-                "tid": toolkit.config.get("googleanalytics.id"),
-                "cid": hashlib.md5(user).hexdigest(),
-                # customer id should be obfuscated
-                "t": "event",
-                "dh": c.environ["HTTP_HOST"],
-                "dp": c.environ["PATH_INFO"],
-                "dr": c.environ.get("HTTP_REFERER", ""),
-                "ec": "CKAN API Request",
-                "ea": request_obj_type + request_function,
-                "el": request_id,
-            }
-            plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
-
-        if toolkit.config.get('googleanalytics.id2'):
-            data_dict_2 = {
-                "v": 1,
-                "tid": toolkit.config.get('googleanalytics.id2'),
-                "cid": hashlib.md5(user).hexdigest(),
-                # customer id should be obfuscated
-                "t": "event",
-                "dh": c.environ['HTTP_HOST'],
-                "dp": c.environ['PATH_INFO'],
-                "dr": c.environ.get('HTTP_REFERER', ''),
-                "ec": "CKAN API Request",
-                "ea": request_obj_type + request_function,
-                "el": request_id,
-            }
-            plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict_2)
+        data_dict = {
+            "v": 1,
+            "tid": config.tracking_id(),
+            "cid": hashlib.md5(user).hexdigest(),
+            # customer id should be obfuscated
+            "t": "event",
+            "dh": c.environ["HTTP_HOST"],
+            "dp": c.environ["PATH_INFO"],
+            "dr": c.environ.get("HTTP_REFERER", ""),
+            "ec": "CKAN API Request",
+            "ea": request_obj_type + request_function,
+            "el": request_id,
+        }
+        plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
 
     def action(self, logic_function, ver=None):
         try:
-            function = logic.get_action(logic_function)
+            function = tk.get_action(logic_function)
             side_effect_free = getattr(function, "side_effect_free", False)
             request_data = self._get_request_data(
                 try_url_params=side_effect_free
@@ -146,37 +127,20 @@ class GAApiController(ApiController):
 
 class GAOrganizationController(OrganizationController):
     def _post_analytics(self, user, request_obj_type, request_function, request_id):
-        if toolkit.config.get('googleanalytics.id'):
-            data_dict = {
-                "v": 1,
-                "tid": toolkit.config.get('googleanalytics.id'),
-                "cid": hashlib.md5(user).hexdigest(),
-                # customer id should be obfuscated
-                "t": "event",
-                "dh": c.environ['HTTP_HOST'],
-                "dp": c.environ['PATH_INFO'],
-                "dr": c.environ.get('HTTP_REFERER', ''),
-                "ec": "CKAN Organization Page View",
-                "ea": request_obj_type + request_function,
-                "el": request_id,
-            }
-            plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
-
-        if toolkit.config.get('googleanalytics.id2'):
-            data_dict_2 = {
-                "v": 1,
-                "tid": toolkit.config.get('googleanalytics.id2'),
-                "cid": hashlib.md5(user).hexdigest(),
-                # customer id should be obfuscated
-                "t": "event",
-                "dh": c.environ['HTTP_HOST'],
-                "dp": c.environ['PATH_INFO'],
-                "dr": c.environ.get('HTTP_REFERER', ''),
-                "ec": "CKAN Organization Page View",
-                "ea": request_obj_type + request_function,
-                "el": request_id,
-            }
-            plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict_2)
+        data_dict = {
+            "v": 1,
+            "tid": config.tracking_id(),
+            "cid": hashlib.md5(user).hexdigest(),
+            # customer id should be obfuscated
+            "t": "event",
+            "dh": c.environ['HTTP_HOST'],
+            "dp": c.environ['PATH_INFO'],
+            "dr": c.environ.get('HTTP_REFERER', ''),
+            "ec": "CKAN Organization Page View",
+            "ea": request_obj_type + request_function,
+            "el": request_id,
+        }
+        plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
 
     def read(self, id, limit=20):
         # We do not want to perform read operation on organization id "new",
@@ -184,7 +148,7 @@ class GAOrganizationController(OrganizationController):
         if id == "new":
             return OrganizationController.new(self)
         try:
-            org = toolkit.get_action('organization_show')({}, {'id': id})
+            org = tk.get_action('organization_show')({}, {'id': id})
             org_title = org.get('title')
             self._post_analytics(c.user, "Organization", "View", org_title)
         except Exception as e:
@@ -194,36 +158,20 @@ class GAOrganizationController(OrganizationController):
 
 class GAPackageController(PackageController):
     def _post_analytics(self, user, request_obj_type, request_function, request_id):
-        if toolkit.config.get('googleanalytics.id'):
-            data_dict = {
-                "v": 1,
-                "tid": toolkit.config.get('googleanalytics.id'),
-                "cid": hashlib.md5(user).hexdigest(),
-                # customer id should be obfuscated
-                "t": "event",
-                "dh": c.environ['HTTP_HOST'],
-                "dp": c.environ['PATH_INFO'],
-                "dr": c.environ.get('HTTP_REFERER', ''),
-                "ec": "CKAN Organization Page View",
-                "ea": request_obj_type + request_function,
-                "el": request_id,
-            }
-            plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
-        if toolkit.config.get('googleanalytics.id2'):
-            data_dict_2 = {
-                "v": 1,
-                "tid": toolkit.config.get('googleanalytics.id2'),
-                "cid": hashlib.md5(user).hexdigest(),
-                # customer id should be obfuscated
-                "t": "event",
-                "dh": c.environ['HTTP_HOST'],
-                "dp": c.environ['PATH_INFO'],
-                "dr": c.environ.get('HTTP_REFERER', ''),
-                "ec": "CKAN Organization Page View",
-                "ea": request_obj_type + request_function,
-                "el": request_id,
-            }
-            plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict_2)
+        data_dict = {
+            "v": 1,
+            "tid": config.tracking_id(),
+            "cid": hashlib.md5(user).hexdigest(),
+            # customer id should be obfuscated
+            "t": "event",
+            "dh": c.environ['HTTP_HOST'],
+            "dp": c.environ['PATH_INFO'],
+            "dr": c.environ.get('HTTP_REFERER', ''),
+            "ec": "CKAN Organization Page View",
+            "ea": request_obj_type + request_function,
+            "el": request_id,
+        }
+        plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
 
     # This function is called everytime we access a dataset including
     # the dataset "new" when creating a new datasets
@@ -252,7 +200,7 @@ class GAPackageController(PackageController):
     def get_package_org_id(self, package_id):
         org_id = ''
         try:
-            package = toolkit.get_action('package_show')({}, {'id': package_id})
+            package = tk.get_action('package_show')({}, {'id': package_id})
             org_id = package.get('organization', {}).get('title')
         except Exception as e:
             log.debug(e)
@@ -261,38 +209,22 @@ class GAPackageController(PackageController):
 
 class GADatastoreController(DatastoreController):
     def _post_analytics(
-            self, user, request_obj_type, request_function, request_id):
-        if toolkit.config.get('googleanalytics.id'):
-            data_dict = {
-                "v": 1,
-                "tid": toolkit.config.get('googleanalytics.id'),
-                "cid": hashlib.md5(user).hexdigest(),
-                # customer id should be obfuscated
-                "t": "event",
-                "dh": c.environ['HTTP_HOST'],
-                "dp": c.environ['PATH_INFO'],
-                "dr": c.environ.get('HTTP_REFERER', ''),
-                "ec": "CKAN Resource Download Request",
-                "ea": request_obj_type + request_function,
-                "el": request_id,
-            }
-            plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
-
-        if toolkit.config.get('googleanalytics.id2'):
-            data_dict_2 = {
-                "v": 1,
-                "tid": toolkit.config.get('googleanalytics.id2'),
-                "cid": hashlib.md5(user).hexdigest(),
-                # customer id should be obfuscated
-                "t": "event",
-                "dh": c.environ['HTTP_HOST'],
-                "dp": c.environ['PATH_INFO'],
-                "dr": c.environ.get('HTTP_REFERER', ''),
-                "ec": "CKAN Resource Download Request",
-                "ea": request_obj_type + request_function,
-                "el": request_id,
-            }
-            plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict_2)
+        self, user, request_obj_type, request_function, request_id
+    ):
+        data_dict = {
+            "v": 1,
+            "tid": config.tracking_id(),
+            "cid": hashlib.md5(user).hexdigest(),
+            # customer id should be obfuscated
+            "t": "event",
+            "dh": c.environ['HTTP_HOST'],
+            "dp": c.environ['PATH_INFO'],
+            "dr": c.environ.get('HTTP_REFERER', ''),
+            "ec": "CKAN Resource Download Request",
+            "ea": request_obj_type + request_function,
+            "el": request_id,
+        }
+        plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
 
     def dump(self, resource_id):
         self._post_analytics(c.user, "Resource", "Download", resource_id)

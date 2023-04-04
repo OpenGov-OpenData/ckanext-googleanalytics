@@ -5,9 +5,7 @@ import logging
 import six
 
 from flask import Blueprint
-from werkzeug.utils import import_string
-from . import plugin
-import ckan.logic as logic
+
 import ckan.plugins.toolkit as tk
 import ckan.views.api as api
 import ckan.views.resource as resource
@@ -15,6 +13,10 @@ import ckan.views.group as group
 import ckan.views.dataset as dataset
 from ckanext.datastore.blueprint import dump
 
+from ckan.common import g
+from ckan.plugins import PluginImplementations
+
+from ckanext.googleanalytics import utils, config, interfaces
 
 CONFIG_HANDLER_PATH = "googleanalytics.download_handler"
 
@@ -25,7 +27,7 @@ _ = tk._
 
 def action(logic_function, ver=api.API_MAX_VERSION):
     try:
-        function = logic.get_action(logic_function)
+        function = tk.get_action(logic_function)
         side_effect_free = getattr(function, "side_effect_free", False)
         request_data = api._get_request_data(try_url_params=side_effect_free)
         if isinstance(request_data, dict):
@@ -34,7 +36,7 @@ def action(logic_function, ver=api.API_MAX_VERSION):
                 id = request_data["q"]
             if "query" in request_data:
                 id = request_data[u"query"]
-            _post_analytics(tk.c.user, "CKAN API Request", logic_function, "", id)
+            _post_analytics(g.user, utils.EVENT_API, logic_function, "", id, request_data)
     except Exception as e:
         log.debug(e)
         pass
@@ -48,7 +50,7 @@ ga.add_url_rule(
     view_func=action,
 )
 ga.add_url_rule(
-    u"/<int(min=3, max={0}):ver>/action/<logic_function>".format(
+    "/api/<int(min=3, max={0}):ver>/action/<logic_function>".format(
         api.API_MAX_VERSION
     ),
     methods=["GET", "POST"],
@@ -57,12 +59,7 @@ ga.add_url_rule(
 
 
 def download(id, resource_id, filename=None, package_type="dataset"):
-    handler_path = tk.config.get(CONFIG_HANDLER_PATH)
-    if handler_path:
-        handler = import_string(handler_path, silent=True)
-    else:
-        handler = None
-        log.warning(("Missing {} config option.").format(CONFIG_HANDLER_PATH))
+    handler = config.download_handler()
     if not handler:
         log.debug("Use default CKAN callback for resource.download")
         handler = resource.download
@@ -70,11 +67,6 @@ def download(id, resource_id, filename=None, package_type="dataset"):
     try:
         resource_dict = tk.get_action('resource_show')({}, {'id': resource_id})
         resource_name = resource_dict.get('name')
-        package_id = resource_dict.get('package_id')
-        package_dict = tk.get_action('package_show')({}, {'id': package_id})
-        package_name = package_dict.get('name')
-        organization_id = package_dict.get('organization', {}).get('id')
-        organization_title = package_dict.get('organization', {}).get('title')
     except tk.ValidationError as error:
         return tk.abort(400, error.message)
     except (tk.ObjectNotFound, tk.NotAuthorized):
@@ -92,31 +84,7 @@ def download(id, resource_id, filename=None, package_type="dataset"):
             resource_alias
         )
     except Exception:
-        log.exception("Error sending resource download request (Res) to Google Analytics: "+resource_id)
-
-    try:
-        package_alias = package_name or package_id
-        _post_analytics(
-            tk.c.user,
-            "CKAN Resource Download Request",
-            "Package",
-            "Download",
-            package_alias
-        )
-    except Exception:
-        log.exception("Error sending resource download request (Pkg) to Google Analytics: "+resource_id)
-
-    try:
-        organization_alias = organization_title or organization_id
-        _post_analytics(
-            tk.c.user,
-            "CKAN Resource Download Request",
-            "Organization",
-            "Download",
-            organization_alias
-        )
-    except Exception:
-        log.exception("Error sending resource download request (Org) to Google Analytics: "+resource_id)
+        log.debug("Error sending resource download request to Google Analytics: " + resource_id)
 
     return handler(
         package_type=package_type,
@@ -259,26 +227,39 @@ ga_datastore.add_url_rule('/dump/<resource_id>', view_func=dump)
 
 
 def _post_analytics(
-    user, event_type, request_obj_type, request_function, request_id
+        user, event_type,
+        request_obj_type, request_function,
+        request_id, request_payload=None
 ):
-    ga_id_list = [
-        tk.config.get('googleanalytics.id', None),
-        tk.config.get('googleanalytics.id2', None)
-    ]
-    for ga_id in ga_id_list:
-        if not ga_id:
-            continue
-        data_dict = {
-            "v": 1,
-            "tid": ga_id,
-            "cid": hashlib.md5(six.ensure_binary(user)).hexdigest(),
-            # customer id should be obfuscated
-            "t": "event",
-            "dh": tk.request.environ["HTTP_HOST"],
-            "dp": tk.request.environ["PATH_INFO"],
-            "dr": tk.request.environ.get("HTTP_REFERER", tk.request.base_url),
-            "ec": event_type,
-            "ea": request_obj_type + request_function,
-            "el": request_id,
-        }
-        plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
+
+    from ckanext.googleanalytics.plugin import GoogleAnalyticsPlugin
+
+    if config.tracking_id():
+        if config.measurement_protocol_client_id() and event_type == utils.EVENT_API:
+            data_dict = utils.MeasurementProtocolData({
+                "event": event_type,
+                "object": request_obj_type,
+                "function": request_function,
+                "id": request_id,
+                "payload": request_payload,
+            })
+        else:
+            data_dict = utils.UniversalAnalyticsData({
+                "v": 1,
+                "tid": config.tracking_id(),
+                "cid": hashlib.md5(six.ensure_binary(tk.c.user)).hexdigest(),
+                # customer id should be obfuscated
+                "t": "event",
+                "dh": tk.request.environ["HTTP_HOST"],
+                "dp": tk.request.environ["PATH_INFO"],
+                "dr": tk.request.environ.get("HTTP_REFERER", ""),
+                "ec": event_type,
+                "ea": request_obj_type + request_function,
+                "el": request_id,
+            })
+
+        for p in PluginImplementations(interfaces.IGoogleAnalytics):
+            if p.googleanalytics_skip_event(data_dict):
+                return
+
+        GoogleAnalyticsPlugin.analytics_queue.put(data_dict)

@@ -1,20 +1,16 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
-from six.moves.urllib.parse import urlencode
-import ast
 import logging
 import threading
-
-
-import requests
 
 import ckan.plugins as p
 import ckan.plugins.toolkit as tk
 
-from ckan.exceptions import CkanVersionException
+from ckan.exceptions import CkanConfigurationException, CkanVersionException
 
-DEFAULT_RESOURCE_URL_TAG = "/downloads/"
+from .. import helpers, utils
+from ..logic import action, auth
 
 log = logging.getLogger(__name__)
 
@@ -26,7 +22,7 @@ else:
     from ckanext.googleanalytics.plugin.flask_plugin import GAMixinPlugin
 
 
-class GoogleAnalyticsException(Exception):
+class GoogleAnalyticsException(CkanConfigurationException):
     pass
 
 
@@ -40,127 +36,44 @@ class AnalyticsPostThread(threading.Thread):
     def run(self):
         while True:
             # grabs host from queue
-            data_dict = self.queue.get()
-
-            data = urlencode(data_dict)
-            log.debug("Sending API event to Google Analytics: " + data)
-            # send analytics
-            headers = {
-                'user-agent': ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
-                               'AppleWebKit/537.36 (KHTML, like Gecko) '
-                               'Chrome/93.0.4577.63 Safari/537.36')
-            }
-            res = requests.post(
-                "https://www.google-analytics.com/collect",
-                data=data,
-                timeout=10,
-                headers=headers,
-            )
+            data = self.queue.get()
+            utils.send_event(data)
             # signals to queue job is done
             self.queue.task_done()
 
 
 class GoogleAnalyticsPlugin(GAMixinPlugin, p.SingletonPlugin):
+
     p.implements(p.IConfigurable, inherit=True)
     p.implements(p.IConfigurer, inherit=True)
     p.implements(p.ITemplateHelpers)
+    p.implements(p.IActions)
+    p.implements(p.IAuthFunctions)
+
+    def get_auth_functions(self):
+        return auth.get_auth()
+
+    def get_actions(self):
+        return action.get_actions()
 
     def configure(self, config):
-        """Load config settings for this extension from config file.
-
-        See IConfigurable.
-
-        """
-        if "googleanalytics.id" not in config:
-            msg = "Missing googleanalytics.id in config"
-            raise GoogleAnalyticsException(msg)
-        self.googleanalytics_id = config["googleanalytics.id"]
-        if "googleanalytics.id2" in config:
-            self.googleanalytics_id2 = config.get("googleanalytics.id2")
-        else:
-            self.googleanalytics_id2 = None
-        self.googleanalytics_domain = config.get(
-            "googleanalytics.domain", "auto"
-        )
-        self.googleanalytics_fields = ast.literal_eval(
-            config.get("googleanalytics.fields", "{}")
-        )
-
-        googleanalytics_linked_domains = config.get(
-            "googleanalytics.linked_domains", ""
-        )
-        self.googleanalytics_linked_domains = [
-            x.strip() for x in googleanalytics_linked_domains.split(",") if x
-        ]
-
-        if self.googleanalytics_linked_domains:
-            self.googleanalytics_fields["allowLinker"] = "true"
-
-        # If resource_prefix is not in config file then write the default value
-        # to the config dict, otherwise templates seem to get 'true' when they
-        # try to read resource_prefix from config.
-        if "googleanalytics_resource_prefix" not in config:
-            config[
-                "googleanalytics_resource_prefix"
-            ] = DEFAULT_RESOURCE_URL_TAG
-        self.googleanalytics_resource_prefix = config[
-            "googleanalytics_resource_prefix"
-        ]
-
-        self.show_downloads = tk.asbool(
-            config.get("googleanalytics.show_downloads", True)
-        )
-        self.track_events = tk.asbool(
-            config.get("googleanalytics.track_events", False)
-        )
-        self.enable_user_id = tk.asbool(
-            config.get("googleanalytics.enable_user_id", False)
-        )
-
-        p.toolkit.add_resource("../assets", "ckanext-googleanalytics")
-
         # spawn a pool of 5 threads, and pass them queue instance
-        for i in range(5):
+        for _i in range(5):
             t = AnalyticsPostThread(self.analytics_queue)
             t.daemon = True
             t.start()
 
     def update_config(self, config):
-        """Change the CKAN (Pylons) environment configuration.
+        tk.add_template_directory(config, "../templates")
+        tk.add_resource("../assets", "ckanext-googleanalytics")
 
-        See IConfigurer.
-
-        """
-        p.toolkit.add_template_directory(config, "../templates")
+        if "googleanalytics.id" not in config:
+            msg = "Missing googleanalytics.id in config"
+            raise GoogleAnalyticsException(msg)
 
     def get_helpers(self):
-        """Return the CKAN 2.0 template helper functions this plugin provides.
+        return helpers.get_helpers()
 
-        See ITemplateHelpers.
 
-        """
-        return {"googleanalytics_header": self.googleanalytics_header}
-
-    def googleanalytics_header(self):
-        """Render the googleanalytics_header snippet for CKAN 2.0 templates.
-
-        This is a template helper function that renders the
-        googleanalytics_header jinja snippet. To be called from the jinja
-        templates in this extension, see ITemplateHelpers.
-
-        """
-
-        if self.enable_user_id and tk.c.user:
-            self.googleanalytics_fields["userId"] = str(tk.c.userobj.id)
-
-        data = {
-            "googleanalytics_id": self.googleanalytics_id,
-            "googleanalytics_domain": self.googleanalytics_domain,
-            "googleanalytics_fields": str(self.googleanalytics_fields),
-            "googleanalytics_linked_domains": self.googleanalytics_linked_domains,
-        }
-        if self.googleanalytics_id2 is not None:
-            data["googleanalytics_id2"] = self.googleanalytics_id2
-        return p.toolkit.render_snippet(
-            "googleanalytics/snippets/googleanalytics_header.html", data
-        )
+if tk.check_ckan_version("2.10"):
+    tk.blanket.config_declarations(GoogleAnalyticsPlugin)

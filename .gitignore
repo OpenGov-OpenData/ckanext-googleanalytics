@@ -6,6 +6,7 @@ syntax: glob
 *~
 build/
 dist/
+.mypy_cache/
 credentials.json
 token.dat
 .DS_Store
