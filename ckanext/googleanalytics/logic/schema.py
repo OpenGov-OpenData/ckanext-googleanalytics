@@ -1,4 +1,7 @@
-from ckan.logic.schema import validator_args
+try:
+    from ckan.logic.schema import validator_args
+except ImportError:
+    from ckanext.googleanalytics.utils import validator_args
 
 
 @validator_args

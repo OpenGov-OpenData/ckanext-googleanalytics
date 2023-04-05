@@ -5,6 +5,10 @@ import requests
 from six.moves.urllib.parse import urlencode
 from ckanext.googleanalytics import config
 
+from functools import wraps
+import inspect
+from ckan.logic import get_validator
+
 
 log = logging.getLogger(__name__)
 
@@ -73,3 +77,19 @@ class UniversalAnalyticsData(dict):
 
 class MeasurementProtocolData(dict):
     pass
+
+
+def validator_args(fn):
+    u'''collect validator names from argument names
+    and pass them to wrapped function'''
+
+    args = inspect.getargspec(fn).args
+
+    @wraps(fn)
+    def wrapper():
+        kwargs = {
+            arg: get_validator(arg)
+            for arg in args}
+        return fn(**kwargs)
+
+    return wrapper
