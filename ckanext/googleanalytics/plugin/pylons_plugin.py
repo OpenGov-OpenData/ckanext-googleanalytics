@@ -6,10 +6,10 @@ import importlib
 
 import ckan.plugins as plugins
 import ckan.plugins.toolkit as tk
+from ckanext.googleanalytics import config
 import logging
 
 from ckan.controllers.package import PackageController
-from pylons import config
 from routes.mapper import SubMapper
 
 
@@ -50,17 +50,6 @@ class GAMixinPlugin(plugins.SingletonPlugin):
             "activity",
         ]
         register_list_str = "|".join(register_list)
-        with SubMapper(map, controller='ckanext.googleanalytics.controller:GAOrganizationController') as m:
-            m.connect('/organization/{id}', action='read')
-
-        with SubMapper(map, controller='ckanext.googleanalytics.controller:GAPackageController') as m:
-            m.connect('dataset_read', '/dataset/{id}', action='read', ckan_icon='sitemap')
-            m.connect('/dataset/{id}/resource/{resource_id}', action='resource_read')
-
-        with SubMapper(map, controller='ckanext.googleanalytics.controller:GADatastoreController') as m:
-            m.connect('/datastore/dump/{resource_id}', action='dump')
-            m.connect('/datastore/download/{resource_id}', action='dump')
-
         # /api ver 3 or none
         with SubMapper(
             map,
@@ -73,6 +62,26 @@ class GAMixinPlugin(plugins.SingletonPlugin):
                 action="action",
                 conditions=GET_POST,
             )
+
+        with SubMapper(
+            map,
+            controller='ckanext.googleanalytics.controller:GAOrganizationController'
+        ) as m:
+            m.connect('/organization/{id}', action='read')
+
+        with SubMapper(
+            map,
+            controller='ckanext.googleanalytics.controller:GAPackageController'
+        ) as m:
+            m.connect('dataset_read', '/dataset/{id}', action='read', ckan_icon='sitemap')
+            m.connect('/dataset/{id}/resource/{resource_id}', action='resource_read')
+
+        with SubMapper(
+            map,
+            controller='ckanext.googleanalytics.controller:GADatastoreController'
+        ) as m:
+            m.connect('/datastore/dump/{resource_id}', action='dump')
+            m.connect('/datastore/download/{resource_id}', action='dump')
 
         # /api ver 1, 2, 3 or none
         with SubMapper(
@@ -151,11 +160,6 @@ def wrap_resource_download(func):
         try:
             resource_dict = tk.get_action('resource_show')({}, {'id': resource_id})
             resource_name = resource_dict.get('name')
-            package_id = resource_dict.get('package_id')
-            package_dict = tk.get_action('package_show')({}, {'id': package_id})
-            package_name = package_dict.get('name')
-            organization_id = package_dict.get('organization', {}).get('id')
-            organization_title = package_dict.get('organization', {}).get('title')
         except tk.ValidationError as error:
             return tk.abort(400, error.message)
         except (tk.ObjectNotFound, tk.NotAuthorized):
@@ -173,31 +177,7 @@ def wrap_resource_download(func):
                 resource_alias,
             )
         except Exception:
-            log.exception("Error sending resource download request (Res) to Google Analytics: "+resource_id)
-
-        try:
-            package_alias = package_name or package_id
-            _post_analytics(
-                tk.c.user,
-                "CKAN Resource Download Request",
-                "Package",
-                "Download",
-                package_alias
-            )
-        except Exception:
-            log.exception("Error sending resource download request (Pkg) to Google Analytics: "+resource_id)
-
-        try:
-            organization_alias = organization_title or organization_id
-            _post_analytics(
-                tk.c.user,
-                "CKAN Resource Download Request",
-                "Organization",
-                "Download",
-                organization_alias
-            )
-        except Exception:
-            log.exception("Error sending resource download request (Org) to Google Analytics: "+resource_id)
+            log.debug("Error sending resource download request to Google Analytics: " + resource_id)
 
         return func(cls, id, resource_id, filename=None)
 
@@ -207,35 +187,17 @@ def wrap_resource_download(func):
 def _post_analytics(
     user, event_type, request_obj_type, request_function, request_id
 ):
-
-    if config.get("googleanalytics.id"):
-        data_dict = {
-            "v": 1,
-            "tid": config.get("googleanalytics.id"),
-            "cid": hashlib.md5(tk.c.user).hexdigest(),
-            # customer id should be obfuscated
-            "t": "event",
-            "dh": tk.c.environ["HTTP_HOST"],
-            "dp": tk.c.environ["PATH_INFO"],
-            "dr": tk.c.environ.get("HTTP_REFERER", ""),
-            "ec": event_type,
-            "ea": request_obj_type + request_function,
-            "el": request_id,
-        }
-        GAMixinPlugin.analytics_queue.put(data_dict)
-
-    if config.get('googleanalytics.id2'):
-        data_dict_2 = {
-            "v": 1,
-            "tid": config.get('googleanalytics.id2'),
-            "cid": hashlib.md5(tk.c.user).hexdigest(),
-            # customer id should be obfuscated
-            "t": "event",
-            "dh": tk.c.environ['HTTP_HOST'],
-            "dp": tk.c.environ['PATH_INFO'],
-            "dr": tk.c.environ.get('HTTP_REFERER', ''),
-            "ec": event_type,
-            "ea": request_obj_type + request_function,
-            "el": request_id,
-        }
-        GAMixinPlugin.analytics_queue.put(data_dict_2)
+    data_dict = {
+        "v": 1,
+        "tid": config.tracking_id(),
+        "cid": hashlib.md5(tk.c.user).hexdigest(),
+        # customer id should be obfuscated
+        "t": "event",
+        "dh": tk.c.environ["HTTP_HOST"],
+        "dp": tk.c.environ["PATH_INFO"],
+        "dr": tk.c.environ.get("HTTP_REFERER", ""),
+        "ec": event_type,
+        "ea": request_obj_type + request_function,
+        "el": request_id,
+    }
+    GAMixinPlugin.analytics_queue.put(data_dict)
