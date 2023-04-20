@@ -10,7 +10,7 @@
  gtag('config', '{{googleanalytics_id}}', {
      anonymize_ip: true,
      linker: {
-         domains: {{ googleanalytics_linked_domains|tojson }}
+         domains: {{ googleanalytics_linked_domains }}
      }
  });
 </script>
