@@ -5,7 +5,9 @@ from werkzeug.utils import import_string
 
 import ckan.plugins.toolkit as tk
 
+CONFIG_TRACKING_ID = "googleanalytics.id"
 CONFIG_HANDLER_PATH = "googleanalytics.download_handler"
+CONFIG_TRACKING_MODE = "googleanalytics.tracking_mode"
 
 DEFAULT_RESOURCE_URL_TAG = "/downloads/"
 DEFAULT_RECENT_VIEW_DAYS = 14
@@ -15,6 +17,7 @@ log = logging.getLogger(__name__)
 
 
 def tracking_id():
+    # type: () -> str
     return tk.config["googleanalytics.id"]
 
 
@@ -30,7 +33,8 @@ def download_handler():
 
 
 def tracking_mode():
-    type_ = tk.config.get("googleanalytics.tracking_mode")
+    # type: () -> Literal["ga", "gtag", "gtm"]
+    type_ = tk.config.get(CONFIG_TRACKING_MODE)
     if type_:
         return type_
 
@@ -42,19 +46,40 @@ def tracking_mode():
     if id_.startswith("G-"):
         return "gtag"
 
+    if id_.startswith("GTM-"):
+        return "gtm"
+
     return "ga"
 
 
 def measurement_id():
+    # type: () -> str
+    """Set the MeasurementID for tracking API actions. By default,
+    `googleanalytics.id` is used.
+
+    Use this option during migration from Universal Analytics, to track API
+    requests using Measurement Protocol, while tracking browser event using
+    Universal Analytics.
+
+    Requires `googleanalytics.measurement_protocol.client_id`.
+    """
     return tk.config.get("googleanalytics.measurement_protocol.id") or tracking_id()
 
 
 def measurement_protocol_client_id():
+    # type: () -> str | None
     return tk.config.get("googleanalytics.measurement_protocol.client_id")
 
 
 def measurement_protocol_client_secret():
     return tk.config.get("googleanalytics.measurement_protocol.client_secret")
+
+
+def measurement_protocol_track_downloads():
+    # type: () -> bool
+    return tk.asbool(
+        tk.config.get("googleanalytics.measurement_protocol.track_downloads")
+    )
 
 
 def account():

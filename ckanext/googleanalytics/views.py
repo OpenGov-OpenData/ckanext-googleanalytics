@@ -18,8 +18,6 @@ from ckan.plugins import PluginImplementations
 
 from ckanext.googleanalytics import utils, config, interfaces
 
-CONFIG_HANDLER_PATH = "googleanalytics.download_handler"
-
 log = logging.getLogger(__name__)
 ga = Blueprint("google_analytics", "google_analytics")
 _ = tk._
@@ -77,11 +75,11 @@ def download(id, resource_id, filename=None, package_type="dataset"):
         if resource_name:
             resource_alias = '{} ({})'.format(resource_id, resource_name)
         _post_analytics(
-            tk.c.user,
-            "CKAN Resource Download Request",
+            g.user,
+            utils.EVENT_DOWNLOAD,
             "Resource",
             "Download",
-            resource_alias
+            resource_alias,
         )
     except Exception:
         log.debug("Error sending resource download request to Google Analytics: " + resource_id)
@@ -115,7 +113,7 @@ def before_organization_request():
             org_dict = tk.get_action('organization_show')({}, {'id': org_id})
             org_title = org_dict.get('title')
             _post_analytics(
-                tk.c.user,
+                g.user,
                 "CKAN Organization Page View",
                 "Organization",
                 "View",
@@ -149,7 +147,7 @@ def before_dataset_request():
             package_dict = tk.get_action('package_show')({}, {'id': package_id})
             org_title = package_dict.get('organization', {}).get('title')
             _post_analytics(
-                tk.c.user,
+                g.user,
                 "CKAN Organization Page View",
                 "Organization",
                 "View",
@@ -183,7 +181,7 @@ def before_resource_request():
             package_dict = tk.get_action('package_show')({}, {'id': package_id})
             org_title = package_dict.get('organization', {}).get('title')
             _post_analytics(
-                tk.c.user,
+                g.user,
                 "CKAN Organization Page View",
                 "Organization",
                 "View",
@@ -213,7 +211,7 @@ def before_datastore_request():
         args = tk.request.view_args
         resource_id = args.get('resource_id', '')
         _post_analytics(
-            tk.c.user,
+            g.user,
             "CKAN Resource Download Request",
             "Resource",
             "Download",
@@ -239,14 +237,20 @@ def _post_analytics(
     from ckanext.googleanalytics.plugin import GoogleAnalyticsPlugin
 
     if config.tracking_id():
-        if config.measurement_protocol_client_id() and event_type == utils.EVENT_API:
+        mp_client_id = config.measurement_protocol_client_id()
+        if mp_client_id and (
+                event_type == utils.EVENT_API
+                or (event_type == utils.EVENT_DOWNLOAD and config.measurement_protocol_track_downloads())
+        ):
             data_dict = utils.MeasurementProtocolData({
                 "event": event_type,
                 "object": request_obj_type,
                 "function": request_function,
                 "id": request_id,
                 "payload": request_payload,
+                "user_id": hashlib.md5(six.ensure_binary(tk.c.user)).hexdigest()
             })
+
         else:
             data_dict = utils.UniversalAnalyticsData({
                 "v": 1,
