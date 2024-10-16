@@ -47,7 +47,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Install requirements
+    - name: Install requirements for CKAN 2.9
+      if: matrix.ckan-version == '2.9'
+      run: |
+        pip install --upgrade setuptools==70.0.0
+        pip install -r requirements.txt
+        pip install -e .
+        # Replace default path to CKAN core config file with the one on the container
+        sed -i -e 's/use = config:.*/use = config:\/srv\/app\/src\/ckan\/test-core.ini/' test.ini
+    - name: Install requirements for other CKAN versions
+      if: matrix.ckan-version != '2.9'
       run: |
         pip install -r requirements.txt
         pip install -e .
