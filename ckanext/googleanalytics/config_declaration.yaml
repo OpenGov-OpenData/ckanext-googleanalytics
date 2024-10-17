@@ -56,3 +56,8 @@ groups:
 
       - key: googleanalytics.recent_view_days
         default: 14
+
+      - key: googleanalytics.opendata_measurement_id
+        default: G-111X1XXXXX
+        description: |
+          The internal OpenData measurement ID for Google Analytics 4.

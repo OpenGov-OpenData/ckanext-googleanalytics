@@ -21,6 +21,11 @@ def tracking_id():
     return tk.config["googleanalytics.id"]
 
 
+def opendata_measurement_id():
+    # type: () -> str
+    return tk.config["googleanalytics.opendata_measurement_id"]
+
+
 def download_handler():
     handler_path = tk.config.get(CONFIG_HANDLER_PATH)
     if handler_path:
