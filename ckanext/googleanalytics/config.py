@@ -23,7 +23,7 @@ def tracking_id():
 
 def opendata_measurement_id():
     # type: () -> str
-    return str(tk.config["googleanalytics.opendata_measurement_id"], '')
+    return str(tk.config.get("googleanalytics.opendata_measurement_id", ''))
 
 
 def download_handler():
