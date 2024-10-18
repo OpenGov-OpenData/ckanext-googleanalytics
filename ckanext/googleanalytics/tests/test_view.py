@@ -9,6 +9,7 @@ def _render_header(mode, tracking_id):
         "googleanalytics_id": tracking_id,
         "googleanalytics_domain": config.domain(),
         "googleanalytics_fields": config.fields(),
+        "googleanalytics_opendata_measurement_id": config.opendata_measurement_id(),
         "googleanalytics_linked_domains": config.linked_domains()
     })
 
