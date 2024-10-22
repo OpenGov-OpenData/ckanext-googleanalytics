@@ -23,4 +23,17 @@
 
     </script>
 
+    {% if h.googleanalytics_opendata_measurement_id() is defined and h.googleanalytics_opendata_measurement_id() is not empty %}
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ h.googleanalytics_opendata_measurement_id() }}"></script>
+    <script>
+        var gamid = "{{ h.googleanalytics_opendata_measurement_id() }}";
+        if(gamid !== ""){
+            <!-- Google tag (gtag.js) -->
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', gamid);
+        }
+    </script>
+    {% endif %}
 {% endblock %}
