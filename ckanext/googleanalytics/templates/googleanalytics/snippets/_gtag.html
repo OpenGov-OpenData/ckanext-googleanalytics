@@ -22,11 +22,11 @@
      {% endblock extra %}
 
     </script>
-
-    {% if h.googleanalytics_opendata_measurement_id() is defined and h.googleanalytics_opendata_measurement_id() is not empty %}
-    <script async src="https://www.googletagmanager.com/gtag/js?id={{ h.googleanalytics_opendata_measurement_id() }}"></script>
+    
+    {% with measurement_id = h.googleanalytics_opendata_measurement_id() %}
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ measurement_id }}"></script>
     <script>
-        var gamid = "{{ h.googleanalytics_opendata_measurement_id() }}";
+        var gamid = "{{ measurement_id() }}";
         if(gamid !== ""){
             <!-- Google tag (gtag.js) -->
             window.dataLayer = window.dataLayer || [];
@@ -35,5 +35,5 @@
             gtag('config', gamid);
         }
     </script>
-    {% endif %}
+    {% endwith %}
 {% endblock %}
