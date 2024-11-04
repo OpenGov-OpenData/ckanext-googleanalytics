@@ -67,8 +67,8 @@ class GoogleAnalyticsPlugin(GAMixinPlugin, p.SingletonPlugin):
         tk.add_template_directory(config, "../templates")
         tk.add_resource("../assets", "ckanext-googleanalytics")
 
-        if not config.get("googleanalytics.id"):
-            msg = "Missing or empty googleanalytics.id in config"
+        if (not config.get("googleanalytics.id") and not config.get("googleanalytics.opendata_measurement_id")):
+            msg = "Missing or empty googleanalytics.id and googleanalytics.opendata_measurement_id in config"
             raise GoogleAnalyticsException(msg)
 
     def get_helpers(self):

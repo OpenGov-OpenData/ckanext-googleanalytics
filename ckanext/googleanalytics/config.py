@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 
 def tracking_id():
     # type: () -> str
-    return tk.config["googleanalytics.id"]
+    return str(tk.config.get("googleanalytics.id", ''))
 
 
 def opendata_measurement_id():
