@@ -27,10 +27,15 @@
     {% if measurement_id %}
         <script async src="https://www.googletagmanager.com/gtag/js?id={{ measurement_id }}"></script>
         <script>
+            console.log('measurement_id', '{{ measurement_id }}');
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
             gtag('config', '{{ measurement_id }}');
+        </script>
+    {% else %}
+        <script>
+            console.log('No measurement_id found');
         </script>
     {% endif %}
     {% endwith %}
