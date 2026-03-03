@@ -19,13 +19,20 @@ jobs:
     needs: lint
     strategy:
       matrix:
-        ckan-version: ["2.11", "2.10", 2.9]
+        include:
+          - ckan-version: "2.11"
+            ckan-image: "ckan/ckan-dev:2.11-py3.10"
+          - ckan-version: "2.10"
+            ckan-image: "ckan/ckan-dev:2.10-py3.10"
+          - ckan-version: "2.9"
+            ckan-image: "ckan/ckan-dev:2.9-py3.9"
       fail-fast: false
 
     name: CKAN ${{ matrix.ckan-version }}
     runs-on: ubuntu-latest
     container:
-      image: ckan/ckan-dev:${{ matrix.ckan-version }}
+      image: ${{ matrix.ckan-image }}
+      options: --user root
     services:
       solr:
         image: ckan/ckan-solr:${{ matrix.ckan-version }}-solr9
@@ -46,17 +53,8 @@ jobs:
       CKAN_REDIS_URL: redis://redis:6379/1
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Install requirements for CKAN 2.9
-      if: matrix.ckan-version == '2.9'
-      run: |
-        pip install --upgrade setuptools==70.0.0
-        pip install -r requirements.txt
-        pip install -e .
-        # Replace default path to CKAN core config file with the one on the container
-        sed -i -e 's/use = config:.*/use = config:\/srv\/app\/src\/ckan\/test-core.ini/' test.ini
-    - name: Install requirements for other CKAN versions
-      if: matrix.ckan-version != '2.9'
+    - uses: actions/checkout@v4
+    - name: Install requirements
       run: |
         pip install -r requirements.txt
         pip install -e .
@@ -76,6 +74,8 @@ jobs:
         ckan -c test.ini db upgrade -p googleanalytics
     - name: Run tests
       run: pytest --ckan-ini=test.ini --cov=ckanext.googleanalytics --cov-report xml:coverage.xml --disable-warnings ckanext/googleanalytics/tests
+    - name: Install unzip for SonarQube and cov
+      run: apt-get update && apt-get -y install unzip curl
     - name: SonarQube Scan
       uses: sonarsource/sonarqube-scan-action@master
       with:
