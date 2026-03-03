@@ -25,3 +25,14 @@ class TestCodeSnippets:
         snippet = _render_header(mode, tracking_id)
         resp = app.get("/about")
         assert six.ensure_str(snippet) in resp
+
+    def test_gtm_mode_includes_opendata_measurement_id(self, app, ckan_config):
+        """When tracking_mode is gtm and opendata_measurement_id is set,
+        the header must include the gtag snippet for that measurement ID."""
+        measurement_id = config.opendata_measurement_id()
+        if not measurement_id:
+            pytest.skip("googleanalytics.opendata_measurement_id not set")
+        snippet = _render_header("gtm", "GTM-123")
+        snippet_str = six.ensure_str(snippet)
+        assert "gtag/js?id={}".format(measurement_id) in snippet_str
+        assert "gtag('config', '{}')".format(measurement_id) in snippet_str
